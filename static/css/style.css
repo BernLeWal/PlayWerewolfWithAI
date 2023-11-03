@@ -157,7 +157,7 @@ header a:hover, footer a:hover {
     font-size: 16px;
 }
 
-.upload-container {
+.newgame-container {
     width: 60%;
     margin: 20px auto;
     background-color: #fff;
@@ -171,7 +171,7 @@ header a:hover, footer a:hover {
     font-size: 18px;
 }
 
-.upload-form {
+.newgame-form {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -198,12 +198,12 @@ header a:hover, footer a:hover {
     cursor: pointer;
 }
 
-.upload-buttons {
+.newgame-buttons {
     display: flex;
     gap: 20px;
 }
 
-.upload-button,
+.newgame-button,
 .cancel-button {
     padding: 10px 20px;
     font-size: 16px;

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="shortcut icon" href="/static/images/favicon.ico" type="image/x-icon">
+<link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="/static/css/style.css">
+<title>Werewolf - Create new game</title>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Werewolf</h1>
+        <button class="home-button" onclick="window.location.href='/'">Home</button>
+    </div>
+    
+    <div class="newgame-container">
+        <p class="intro-text">Create a new game and add it to the gallery</p>
+        
+        <form action="/newgame" method="POST" enctype="multipart/form-data" class="newgame-form">
+            <div>
+                <label for="player_name">Enter your name:</label>
+                <input type="text" name="player_name"/><br/>
+                <label for="game_name">Name of the game:</label>
+                <input type="text" name="game_name"/><br/>
+                <br/>
+            </div>
+            
+            <div class="newgame-buttons">
+                <button type="submit" class="newgame-button">Create</button>
+                <button type="button" class="cancel-button" onclick="window.location.href='/'">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
