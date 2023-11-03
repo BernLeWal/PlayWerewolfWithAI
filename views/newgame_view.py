@@ -1,5 +1,5 @@
 from flask.views import MethodView
-from flask import render_template, request, redirect, url_for, session
+from flask import render_template, request, redirect, url_for, session, g
 
 class NewGameView(MethodView):
     def __init__(self, app) -> None:
@@ -19,6 +19,13 @@ class NewGameView(MethodView):
             session['PLAYER_NAME'] = player_name
             session['NEW_GAME_NAME'] = game_name
 
-            return redirect(url_for('games'))
+            g.players.append(player_name)
+            print( "Current players: " + ", ".join(g.players))
+
+            g.games.append(game_name)
+            print( "Current games: " + ", ".join(g.games))
+
+
+            return redirect(url_for('newgame'))
 
         return "Not implemented yet", 500

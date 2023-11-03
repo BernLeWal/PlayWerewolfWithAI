@@ -1,7 +1,7 @@
 #!/bin/python
 import os
 import secrets
-from flask import Flask
+from flask import Flask, g
 from views.home_view import HomeView
 from views.newgame_view import NewGameView
 
@@ -10,6 +10,15 @@ from views.newgame_view import NewGameView
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16)) 
 
+
+# In-memory datastore (possibly replaced later)
+players = []
+games = []
+
+@app.before_request
+def before_request():
+    g.players = players
+    g.games = games
 
 
 # Rules to connect the views
