@@ -1,32 +1,33 @@
 #!/bin/python
 import os
-import secrets
-from flask import Flask, g
-from views.home_view import HomeView
-from views.newgame_view import NewGameView
+
+import discord
+from dotenv import load_dotenv
+
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD = os.getenv('DISCORD_GUILD')
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True  # This is necessary to access the member list
+client = discord.Client(intents=intents)
 
 
-# Logic to set up the application
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16)) 
+@client.event
+async def on_ready():
+    print(f'{client.user} has connected to Discord!')
 
+    for guild in client.guilds:
+        if guild.name == GUILD:
+            break
 
-# In-memory datastore (possibly replaced later)
-players = []
-games = []
+    print(
+        f'{client.user} is connected to the following guild:\n'
+        f'{guild.name}(id: {guild.id})'
+    )
 
-@app.before_request
-def before_request():
-    g.players = players
-    g.games = games
+    members = '\n - '.join([member.name for member in guild.members])
+    print(f'Guild Members:\n - {members}')
 
-
-# Rules to connect the views
-app.add_url_rule('/', view_func=HomeView.as_view('home'))
-app.add_url_rule('/newgame', view_func=NewGameView.as_view('newgame', app))
-
-# Static files
-
-# Application entry point
-if __name__ == "__main__":
-    app.run(debug=True)
+client.run(TOKEN)
