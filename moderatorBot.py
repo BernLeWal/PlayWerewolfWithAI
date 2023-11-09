@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 
+from logic.gamestate import GameContext
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
@@ -30,11 +31,17 @@ intents.members = True  # This is necessary to access the member list
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Global variables (singletons ;-) )
+guild = None    # is set in on_ready()
+games = {}
+
 
 # Discord Event Handlers:
 @bot.event
-async def on_ready():
+async def on_ready():    
+    global guild
     guild = discord.utils.get(bot.guilds, name=GUILD)
+
     logger.info(
         f'{bot.user} is connected to the following guild:\n'
         f'{guild.name}(id: {guild.id})\n'
@@ -54,25 +61,6 @@ async def on_ready():
             )
     else:
         logger.warn(f"No 'general' channel found in {guild.name} or missing permission to send messages.")
-
-
-
-@bot.command(name='quit', help='Shuts down the bot (accessible only by the master-user ;-) )')
-async def quit(ctx):
-    if str(ctx.author.id) == DEV_USER_ID:
-        logger.info(f'{ctx.author.id} shuts down the bot!')
-        await ctx.send("I'll take a nap, bye...")
-        await bot.close()
-        sys.exit(0)
-    else:
-        logger.warn(f'{ctx.author.id} wanted to shut down the bot!')
-        await ctx.send('You do not have permission to shut down the bot.')
-
-
-@bot.command(name='rules', help='Display the game rules')
-async def show_rules(ctx):
-    with open('doc/GAMEPLAY.md','r') as f:
-        await ctx.send(f.read())
 
 
 @bot.event
@@ -98,6 +86,71 @@ async def on_message(message):
     # Without this, commands won't get processed
     await bot.process_commands(message)
 
+
+# Management Commands:
+@bot.command(name='quit', help='Shuts down the bot (accessible only by the master-user ;-) )')
+async def quit(ctx):
+    if str(ctx.author.id) == DEV_USER_ID:
+        logger.info(f'{ctx.author.id} shuts down the bot!')
+        await ctx.send("I'll take a nap, bye...")
+        await bot.close()
+        sys.exit(0)
+    else:
+        logger.warn(f'{ctx.author.id} wanted to shut down the bot!')
+        await ctx.send('You do not have permission to shut down the bot.')
+
+
+@bot.command(name='rules', help='Display the game rules')
+async def show_rules(ctx):
+    with open('doc/GAMEPLAY.md','r') as f:
+        await ctx.send(f.read())
+
+
+# Game Commands:
+@bot.command(name='status', help='Shows the status of the current game. \nEvery channel except general represents one game')
+async def status(ctx):
+    global games
+    if ctx.channel == guild.text_channels[0]:
+        await ctx.send(
+            f"ModeratorBot is up and running!\n"
+            f"Join one of the channels to join a Werewolves game!"
+        )
+    else:
+        game = None
+        if not ctx.channel in games.keys():
+            game = GameContext(ctx.channel)
+        else:
+            game = games[ctx.channel]
+        await ctx.send(f"{game.request('status', ctx.author)}")
+
+
+@bot.command(name='join', help='Join the game in the current channel')
+async def join(ctx):
+    global games
+    if ctx.channel == guild.text_channels[0]:
+        await ctx.send( f"Games can only be played in the other channels (one channel represents one game)!\n" )
+    else:
+        game = None
+        if not ctx.channel in games.keys():
+            game = GameContext(ctx.channel)
+            games[ctx.channel] = game
+        else:
+            game = games[ctx.channel]
+        await ctx.send(f"{game.request('join', ctx.author)}")
+
+
+@bot.command(name='start', help='Starts the Werewolves game with all members in the current channel.')
+async def start(ctx):
+    global games
+    if ctx.channel == guild.text_channels[0]:
+        await ctx.send( f"Games can only be played in the other channels (one channel represents one game)!\n" )
+    else:
+        game = None
+        if not ctx.channel in games.keys():
+            game = GameContext(ctx.channel)
+        else:
+            game = games[ctx.channel]
+        await ctx.send(f"{game.request('start', ctx.author)}")
 
 
 bot.run(TOKEN)
