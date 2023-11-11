@@ -1,4 +1,8 @@
 #!/bin/python
+""" moderatorBot.py
+Discord Bot who will automatically be the moderator of all Werewolves games 
+on the configured Discord Guild.
+"""
 import os
 import sys
 import logging
@@ -7,18 +11,21 @@ from dotenv import load_dotenv
 
 import discord
 from discord.ext import commands
+from discord import TextChannel
 
 from logic.gamestate import GameContext
+from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
-logger = logging.getLogger(__name__) # This logger will inherit the settings from the root logger, configured above
+logger = logging.getLogger(__name__)
 
 
 # Load configuration
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD = os.getenv('DISCORD_GUILD')
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+DISCORD_GUILD = os.getenv('DISCORD_GUILD')
 DEV_USER_ID = os.getenv('DEV_USER_ID')
 
 
@@ -32,39 +39,40 @@ intents.members = True  # This is necessary to access the member list
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Global variables (singletons ;-) )
-guild = None    # is set in on_ready()
-games = {}
+GUILD = None    # is set in on_ready()
+GAMES: dict[TextChannel, GameContext] = {}
 
 
 # Discord Event Handlers:
 @bot.event
-async def on_ready():    
-    global guild
-    guild = discord.utils.get(bot.guilds, name=GUILD)
+async def on_ready():
+    """Bot connected to Discord"""
+    global GUILD
+    GUILD = discord.utils.get(bot.guilds, name=DISCORD_GUILD)
 
-    logger.info(
-        f'{bot.user} is connected to the following guild:\n'
-        f'{guild.name}(id: {guild.id})\n'
-    )
+    logger.info("%s is connected to the following guild:\n%s(id: %s)\n",
+        bot.user, GUILD.name, GUILD.id )
 
-    members = '\n - '.join([str(member) for member in guild.members])
-    logger.info(f'Guild Members:\n - {members}\n')
+    members = '\n - '.join([str(member) for member in GUILD.members])
+    logger.info("Guild Members:\n - %s\n", members)
 
-    channels = '\n - '.join([str(channel) for channel in guild.text_channels])
-    logger.info(f'Guild Channels:\n - {channels}\n')
+    channels = '\n - '.join([str(channel) for channel in GUILD.text_channels])
+    logger.info("Guild Channels:\n - %s\n", channels)
 
-    general = guild.text_channels[0]   #discord.utils.get(guild.text_channels, name="Allgemein")  # in english
-    if general and general.permissions_for(guild.me).send_messages:
+    general = GUILD.text_channels[0]
+    if general and general.permissions_for(GUILD.me).send_messages:
         await general.send(
-            f'Hello! I am now online and will moderate the Werewolves games!\n'
-            f'Enter !help to get a list of all commands.'
+            "Hello! I am now online and will moderate the Werewolves games!\n"
+            "Enter !help to get a list of all commands."
             )
     else:
-        logger.warn(f"No 'general' channel found in {guild.name} or missing permission to send messages.")
+        logger.warning("No 'general' channel found in %s or missing permission to send messages.",
+            GUILD.name)
 
 
 @bot.event
 async def on_member_join(member):
+    """A member joined the Discord guild"""
     await member.create_dm()
     await member.dm_channel.send(
         f'Hi {member.name}, welcome to the server of wAIrewolves games!'
@@ -73,13 +81,14 @@ async def on_member_join(member):
 
 @bot.event
 async def on_message(message):
+    """A member sent a message"""
     if message.author == bot.user:
         return
-    
-    logger.debug(f'{message.channel}: {message.author}={message.content}')
+
+    logger.debug("%s: %s=%s", message.channel, message.author, message.content)
 
     # write channel messages to later use to analyze and improve the AI-player bot
-    with open(f'data/{message.channel}.csv','a') as f:
+    with open(f'data/{message.channel}.csv', 'a', encoding="utf-8") as f:
         timestamp_string = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'{timestamp_string};{message.author};{message.content}\n')
 
@@ -87,70 +96,81 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# Management Commands:
-@bot.command(name='quit', help='Shuts down the bot (accessible only by the master-user ;-) )')
-async def quit(ctx):
-    if str(ctx.author.id) == DEV_USER_ID:
-        logger.info(f'{ctx.author.id} shuts down the bot!')
-        await ctx.send("I'll take a nap, bye...")
-        await bot.close()
-        sys.exit(0)
-    else:
-        logger.warn(f'{ctx.author.id} wanted to shut down the bot!')
-        await ctx.send('You do not have permission to shut down the bot.')
-
-
+# Game Commands:
 @bot.command(name='rules', help='Display the game rules')
 async def show_rules(ctx):
-    with open('doc/GAMEPLAY.md','r') as f:
+    """The game rules are displayed"""
+    with open('doc/GAMEPLAY.md','r', encoding="utf-8") as f:
         await ctx.send(f.read())
 
 
-# Game Commands:
 @bot.command(name='status', help='Shows the status of the current game. \nEvery channel except general represents one game')
 async def status(ctx):
-    global games
-    if ctx.channel == guild.text_channels[0]:
+    """Status command"""
+    if ctx.channel == GUILD.text_channels[0]:
         await ctx.send(
-            f"ModeratorBot is up and running!\n"
-            f"Join one of the channels to join a Werewolves game!"
+            "ModeratorBot is up and running!\n"
+            "Join one of the channels to join a Werewolves game!"
         )
     else:
         game = None
-        if not ctx.channel in games.keys():
+        if not ctx.channel in GAMES:
             game = GameContext(ctx.channel)
         else:
-            game = games[ctx.channel]
-        await ctx.send(f"{game.request('status', ctx.author)}")
+            game = GAMES[ctx.channel]
+        await ctx.send(f"{await game.handle( StatusCommand(ctx.author) )}")
 
 
 @bot.command(name='join', help='Join the game in the current channel')
 async def join(ctx):
-    global games
-    if ctx.channel == guild.text_channels[0]:
-        await ctx.send( f"Games can only be played in the other channels (one channel represents one game)!\n" )
+    """Join command"""
+    if ctx.channel == GUILD.text_channels[0]:
+        await ctx.send( "Games can only be played in the other channels (one channel represents one game)!\n" )
     else:
         game = None
-        if not ctx.channel in games.keys():
+        if not ctx.channel in GAMES:
             game = GameContext(ctx.channel)
-            games[ctx.channel] = game
+            GAMES[ctx.channel] = game
         else:
-            game = games[ctx.channel]
-        await ctx.send(f"{game.request('join', ctx.author)}")
+            game = GAMES[ctx.channel]
+        await ctx.send(f"{await game.handle( JoinCommand(ctx.author))}")
+
+
+@bot.command(name='quit', help='Leaves the game')
+async def quit_bot(ctx):
+    """To leave a game (or stop the bot)"""
+    if ctx.channel == GUILD.text_channels[0]:
+        #The master user (it's me, the developer), stops the bot.
+        if str(ctx.author.id) == DEV_USER_ID:
+            logger.info("%s shuts down the bot!", ctx.author.id)
+            await ctx.send("I'll take a nap, bye...")
+            await bot.close()
+            sys.exit(0)
+        else:
+            logger.warning("%s wanted to shut down the bot!", ctx.author.id)
+            await ctx.send('You do not have permission to shut down the bot.')
+    else:
+        game = None
+        if not ctx.channel in GAMES:
+            game = GameContext(ctx.channel)
+            GAMES[ctx.channel] = game
+        else:
+            game = GAMES[ctx.channel]
+        await ctx.send(f"{await game.handle( QuitCommand(ctx.author))}")
 
 
 @bot.command(name='start', help='Starts the Werewolves game with all members in the current channel.')
 async def start(ctx):
-    global games
-    if ctx.channel == guild.text_channels[0]:
-        await ctx.send( f"Games can only be played in the other channels (one channel represents one game)!\n" )
+    """Start command"""
+    if ctx.channel == GUILD.text_channels[0]:
+        await ctx.send( "Games can only be played in the other channels (one channel represents one game)!\n" )
     else:
         game = None
-        if not ctx.channel in games.keys():
+        if not ctx.channel in GAMES:
             game = GameContext(ctx.channel)
         else:
-            game = games[ctx.channel]
-        await ctx.send(f"{game.request('start', ctx.author)}")
+            game = GAMES[ctx.channel]
+        await ctx.send(f"{await game.handle( StartCommand(ctx.author))}")
 
 
-bot.run(TOKEN)
+bot.run(DISCORD_TOKEN)
