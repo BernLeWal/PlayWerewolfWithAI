@@ -92,6 +92,11 @@ async def on_message(message):
         timestamp_string = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'{timestamp_string};{message.author};{message.content}\n')
 
+    if message.guild is None:
+        # a direct message from a player to the bot
+        for game in GAMES.values():
+            game.handle_dm_from_seer(message.author)
+
     # Without this, commands won't get processed
     await bot.process_commands(message)
 
@@ -112,6 +117,8 @@ async def status(ctx):
             "ModeratorBot is up and running!\n"
             "Join one of the channels to join a Werewolves game!"
         )
+    elif isinstance(ctx.channel, discord.DMChannel):
+        pass
     else:
         game = None
         if not ctx.channel in GAMES:
@@ -126,6 +133,8 @@ async def join(ctx):
     """Join command"""
     if ctx.channel == GUILD.text_channels[0]:
         await ctx.send( "Games can only be played in the other channels (one channel represents one game)!\n" )
+    elif isinstance(ctx.channel, discord.DMChannel):
+        pass
     else:
         game = None
         if not ctx.channel in GAMES:
@@ -149,6 +158,8 @@ async def quit_bot(ctx):
         else:
             logger.warning("%s wanted to shut down the bot!", ctx.author.id)
             await ctx.send('You do not have permission to shut down the bot.')
+    elif isinstance(ctx.channel, discord.DMChannel):
+        pass
     else:
         game = None
         if not ctx.channel in GAMES:
@@ -164,6 +175,8 @@ async def start(ctx):
     """Start command"""
     if ctx.channel == GUILD.text_channels[0]:
         await ctx.send( "Games can only be played in the other channels (one channel represents one game)!\n" )
+    elif isinstance(ctx.channel, discord.DMChannel):
+        pass
     else:
         game = None
         if not ctx.channel in GAMES:
