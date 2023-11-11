@@ -75,7 +75,7 @@ async def on_member_join(member):
     """A member joined the Discord guild"""
     await member.create_dm()
     await member.dm_channel.send(
-        f'Hi {member.name}, welcome to the server of wAIrewolves games!'
+        f'Hi {member.display_name}, welcome to the server of wAIrewolves games!'
     )
 
 

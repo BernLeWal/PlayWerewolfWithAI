@@ -94,14 +94,14 @@ class ReadyState(GameState):
 
     async def handle_join(self, game: GameContext, command :JoinCommand) ->str:
         print(f"{command.author} joins the game {game.name}")
-        game.players[command.author] = Player(command.author.name)
-        return f"{command.author} joined the game."
+        game.players[command.author] = Player(command.author.display_name)
+        return f"{command.author.display_name} joined the game."
 
     async def handle_quit(self, game: GameContext, command :QuitCommand) ->str:
         print(f"{command.author} quits the game {game.name}")
         if command.author in game.players:
             del game.players[command.author]
-        return f"{command.author} quits the game."
+        return f"{command.author.display_name} quits the game."
 
     async def handle_start(self, game: GameContext, command: StartCommand) ->str:
         if len(game.players)<2:  # TODO
@@ -124,13 +124,13 @@ class ReadyState(GameState):
         for member in game.players.keys():
             if isinstance(game.players[member].card, WerewolfCard):
                 werewolves.append(member)
-        werewolves_str = " ".join( member.name for member in werewolves )
+        werewolves_str = " ".join( member.display_name for member in werewolves )
         print(f"The werewolves are:{werewolves_str}")
         for member in werewolves:
             await member.dm_channel.send(
                 f"The werewolves team is {werewolves_str},\n"
-                " secretly talk to them with direct messages!"
-                "You need to vote for a villager to be eaten."
+                " secretly talk to them with direct messages!\n"
+                "You need to vote for a villager to be eaten.\n"
                 "Tell me your decision using the !vote command in this direct-channel."
             )
 
