@@ -11,10 +11,10 @@ from dotenv import load_dotenv
 
 import discord
 from discord.ext import commands
-from discord import TextChannel
+from discord import TextChannel, Member
 
-from logic.gamestate import GameContext
-from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand
+from logic.gamestate import GameContext, ReadyState
+from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
 
 
 # Set up logging
@@ -43,7 +43,26 @@ GUILD = None    # is set in on_ready()
 GAMES: dict[TextChannel, GameContext] = {}
 
 
-# Discord Event Handlers:
+#### Helpers
+def game_from_channel(channel :TextChannel) ->GameContext:
+    """Fetches the game of the channel, creates a new one if not found."""
+    if not channel in GAMES:
+        game = GameContext(channel)
+        GAMES[channel] = game
+        return game
+    else:
+        return GAMES[channel]
+
+def game_from_member(author :Member) ->GameContext:
+    """Fetches the game where the author is playing."""
+    for _, game in GAMES.items():
+        for member, _ in game.players.items():
+            if member==author:
+                return game
+    return None
+
+
+###### Discord Event Handlers:
 @bot.event
 async def on_ready():
     """Bot connected to Discord"""
@@ -92,16 +111,11 @@ async def on_message(message):
         timestamp_string = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'{timestamp_string};{message.author};{message.content}\n')
 
-    if message.guild is None:
-        # a direct message from a player to the bot
-        for game in GAMES.values():
-            game.handle_dm_from_seer(message.author)
-
     # Without this, commands won't get processed
     await bot.process_commands(message)
 
 
-# Game Commands:
+##### Game Commands: #####
 @bot.command(name='rules', help='Display the game rules')
 async def show_rules(ctx):
     """The game rules are displayed"""
@@ -109,7 +123,9 @@ async def show_rules(ctx):
         await ctx.send(f.read())
 
 
-@bot.command(name='status', help='Shows the status of the current game. \nEvery channel except general represents one game')
+@bot.command(name='status',
+    help="Shows the status of the current game. \n"
+    "Every channel except general represents one game")
 async def status(ctx):
     """Status command"""
     if ctx.channel == GUILD.text_channels[0]:
@@ -120,11 +136,7 @@ async def status(ctx):
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = None
-        if not ctx.channel in GAMES:
-            game = GameContext(ctx.channel)
-        else:
-            game = GAMES[ctx.channel]
+        game = game_from_channel(ctx.channel)
         await ctx.send(f"{await game.handle( StatusCommand(ctx.author) )}")
 
 
@@ -132,16 +144,11 @@ async def status(ctx):
 async def join(ctx):
     """Join command"""
     if ctx.channel == GUILD.text_channels[0]:
-        await ctx.send( "Games can only be played in the other channels (one channel represents one game)!\n" )
+        await ctx.send( "Games can only be played in the other channels!\n" )
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = None
-        if not ctx.channel in GAMES:
-            game = GameContext(ctx.channel)
-            GAMES[ctx.channel] = game
-        else:
-            game = GAMES[ctx.channel]
+        game = game_from_channel(ctx.channel)
         await ctx.send(f"{await game.handle( JoinCommand(ctx.author))}")
 
 
@@ -161,29 +168,49 @@ async def quit_bot(ctx):
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = None
-        if not ctx.channel in GAMES:
-            game = GameContext(ctx.channel)
-            GAMES[ctx.channel] = game
-        else:
-            game = GAMES[ctx.channel]
+        game = game_from_channel(ctx.channel)
         await ctx.send(f"{await game.handle( QuitCommand(ctx.author))}")
 
 
-@bot.command(name='start', help='Starts the Werewolves game with all members in the current channel.')
+@bot.command(name='start', help='Starts the game with all joint members in the current channel.')
 async def start(ctx):
     """Start command"""
     if ctx.channel == GUILD.text_channels[0]:
-        await ctx.send( "Games can only be played in the other channels (one channel represents one game)!\n" )
+        await ctx.send( "Games can only be played in the other channels!" )
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = None
-        if not ctx.channel in GAMES:
-            game = GameContext(ctx.channel)
-        else:
-            game = GAMES[ctx.channel]
+        game = game_from_channel(ctx.channel)
         await ctx.send(f"{await game.handle( StartCommand(ctx.author))}")
+
+
+@bot.command(name='vote', help='Votes a player to be selected for the next victim.')
+async def vote(ctx, player_name :str):
+    """Vote command"""
+    if ctx.channel == GUILD.text_channels[0]:
+        await ctx.send( "Games can only be player in the other channels!")
+    elif isinstance(ctx.channel, discord.DMChannel):
+        game = game_from_member(ctx.author)
+        if not game is None:
+            result = await game.handle( VoteCommand(ctx.author, player_name))
+            await ctx.send(result)
+            if isinstance(game.state, ReadyState):
+                # GAME OVER occured - also tell the others about it
+                await game.channel.send(result)
+    else:
+        game = game_from_channel(ctx.channel)
+        await ctx.send(f"{await game.handle( VoteCommand(ctx.author, player_name))}")
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    """Error Handling"""
+    if isinstance(error, commands.errors.CommandNotFound):
+        await ctx.send('Command does not exist: \n'
+                       'Type !help to get a list of all commands')
+
+    if isinstance(error, commands.errors.MissingRequiredArgument):
+        await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
 
 
 bot.run(DISCORD_TOKEN)

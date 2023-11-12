@@ -9,6 +9,16 @@ class Player:
     def __init__(self, name :str):
         self.name = name
         self.card : Card = None
-        self.night_vote = None
-        self.day_vote = None
+        self.night_vote : Player = None
+        self.day_vote : Player = None
         self.seer_asked_werewolf = False
+        self.is_dead = False
+
+
+    def reset(self) ->None:
+        """Resets the players values"""
+        self.card : Card = None
+        self.night_vote : Player = None
+        self.day_vote : Player = None
+        self.seer_asked_werewolf = False
+        self.is_dead = False
