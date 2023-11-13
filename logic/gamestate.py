@@ -1,18 +1,21 @@
 """
 State-Machine implementing the various states in the game play
 """
-from discord import TextChannel, Member
+import random
+from discord import Guild, TextChannel, VoiceChannel, Member
 
 from logic.command import GameCommand
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
 from model.player import Player
-from model.card import shuffle, WerewolfCard, SeerCard
+from model.card import create_cards, WerewolfCard, SeerCard
 
 
 class GameContext:
     """The game that holds the state"""
-    def __init__(self, channel :TextChannel) ->None:
+    def __init__(self, guild: Guild, channel :TextChannel) ->None:
+        self.guild = guild
         self.channel = channel
+        self.werewolves_channel : VoiceChannel = None
         self.name = channel.name
         self.__state__ = ReadyState()
         self.players: dict[Member, Player] = {}
@@ -21,13 +24,13 @@ class GameContext:
         """Handle the provided command, returns a text message to be displaye in the channel"""
         return await self.__state__.handle(self, command)
 
-    def change_state(self, next_state) ->None:
+    async def change_state(self, next_state) ->None:
         """Change the state, will automatically call on_leave/on_enter"""
         prev_state = self.__state__
         if not prev_state is None:
-            prev_state.on_leave( self, next_state )
+            await prev_state.on_leave( self, next_state )
         self.__state__ = next_state
-        self.__state__.on_enter( self, prev_state )
+        await self.__state__.on_enter( self, prev_state )
 
     def find_player_by_name(self, player_name: str) ->Player:
         """Finds the player by player_name"""
@@ -65,13 +68,13 @@ class GameState:
         """Forwards the command to the corresponding command-handler"""
         if isinstance(command, StatusCommand):
             return await self.handle_status(game, command)
-        elif isinstance(command, JoinCommand):
+        if isinstance(command, JoinCommand):
             return await self.handle_join(game, command)
-        elif isinstance(command, QuitCommand):
+        if isinstance(command, QuitCommand):
             return await self.handle_quit(game, command)
-        elif isinstance(command, StartCommand):
+        if isinstance(command, StartCommand):
             return await self.handle_start(game, command)
-        elif isinstance(command, VoteCommand):
+        if isinstance(command, VoteCommand):
             return await self.handle_vote(game, command)
         raise NotImplementedError
 
@@ -97,10 +100,10 @@ class GameState:
         return f"Command {command.name} not supported here (in {game.name})!"
 
 
-    def on_enter(self, game: GameContext, prev_state) ->None:
+    async def on_enter(self, game: GameContext, prev_state) ->None:
         """Called before the state is activated"""
 
-    def on_leave(self, game: GameContext, next_state) ->None:
+    async def on_leave(self, game: GameContext, next_state) ->None:
         """Called after the state is deactivated"""
 
 
@@ -135,7 +138,13 @@ class ReadyState(GameState):
             return "Cannot start game. At least six player must join the game via !join command."
 
         # Shuffle and assign cards
-        cards = shuffle(len(game.players))
+        cards = create_cards(len(game.players))
+        result = "Game started\nThe following cards are in the game:\n"
+        for card in cards:
+            result += f"- **{card.name}**: {card.desc}\n"
+        print(result)
+
+        random.shuffle(cards)
         for member in game.players.keys():
             card = cards.pop()
             print( f"{member} gets card {card}" )
@@ -151,32 +160,55 @@ class ReadyState(GameState):
         for member in game.players.keys():
             if isinstance(game.players[member].card, WerewolfCard):
                 werewolves.append(member)
+        if game.werewolves_channel is None:
+            game.werewolves_channel = await game.guild.create_voice_channel(
+                "WerewolvesOnly_" + game.channel.name
+            )
         werewolves_str = " ".join( member.display_name for member in werewolves )
         print(f"The werewolves are:{werewolves_str}")
         for member in werewolves:
             await member.dm_channel.send(
                 f"The werewolves team is {werewolves_str},\n"
-                " secretly talk to them with direct messages!\n"
+                f" secretly talk to them in {game.werewolves_channel.name}!\n"
                 "You need to vote for a villager to be eaten.\n"
                 "Tell me your decision using the !vote command in this direct-channel."
             )
+        await game.werewolves_channel.send(
+            "This is the channel for Werewolves only - **PLEASE DON't CHEAT!**")
+        await game.werewolves_channel.send(
+            f"The werewolves team is {werewolves_str},\n"
+            "You need to vote for a villager to be your next victim."
+        )
 
-        game.change_state( NightState() )
-        return "Game started, cards shuffled and distributed."
+        await game.change_state( NightState() )
+        return result
 
-    def on_enter(self, game: GameContext, prev_state) ->None:
+    async def on_enter(self, game: GameContext, prev_state) ->None:
         for _, player in game.players.items():
             player.reset()
+
+        await game.channel.send(
+            "This GAME is over!\n"
+            "Use the !start command to start with a new one."
+        )
+
+        if not game.werewolves_channel is None:
+            await game.werewolves_channel.delete()
+            game.werewolves_channel = None
 
 
 
 class NightState(GameState):
     """The night-phase of a game-round"""
     async def handle_status(self, game :GameContext, command :StatusCommand) ->str:
-        return """
-        It is night. The Werewolves seek for their next victim.
-        Werewolves use the !vote command.
-        """
+        result = "It is night. The Werewolves seek for their next victim.\n"
+        result += "Currently the following are still alive:\n"
+        for player in game.players.values():
+            if not player.is_dead:
+                result += f"- **{player.name}**\n"
+        result += "Werewolves use the !vote command."
+        return result
+
 
     async def handle_vote(self, game :GameContext, command :VoteCommand) ->str:
         # Check if the player is allowed to vote
@@ -189,14 +221,13 @@ class NightState(GameState):
             return f"{command.player_name} was not found in the list of alive players!"
 
         if isinstance(player.card, WerewolfCard):
-            return self.handle_werewolf_vote(game, player, victim)
-        elif isinstance(player.card, SeerCard):
+            return await self.handle_werewolf_vote(game, player, victim)
+        if isinstance(player.card, SeerCard):
             return self.handle_seer_vote(player, victim)
-        else:
-            return "Only alive Werewolves are allowed to vote a victim!"
+        return "Only alive Werewolves are allowed to vote a victim!"
 
 
-    def handle_werewolf_vote(self, game :GameContext, player :Player, victim :Player) ->str:
+    async def handle_werewolf_vote(self, game :GameContext, player :Player, victim :Player) ->str:
         """Handles the Werewolves vote process"""
         player.night_vote = victim
 
@@ -210,12 +241,12 @@ class NightState(GameState):
                     if player.night_vote != victim:
                         vote_valid = False
         if not vote_valid:
-            return f"""
-            All Werewolves must agree on one victim.
-            Current votes are {votes}
-            Vote is not finished yet.
-            Use !vote command to update your decision.
-            """
+            return (
+                "All Werewolves must agree on one victim.\n"
+                f"Current votes are {votes}\n"
+                "Vote is not finished yet.\n"
+                "Use !vote command to update your decision."
+            )
 
         # We found a victim
         result = f"{victim.name} is killed by the Werewolves!\n"
@@ -228,11 +259,12 @@ class NightState(GameState):
             result += "\nGAME OVER - the villagers won!"
         if nr_villagers == 0:
             result += "\nGAME OVER - the werewolves won!"
+        await game.channel.send(result)
 
         if nr_werewolves == 0 or nr_villagers == 0:
-            game.change_state( ReadyState() )
+            await game.change_state( ReadyState() )
         else:
-            game.change_state( DayState() )
+            await game.change_state( DayState() )
 
         return result
 
@@ -248,17 +280,26 @@ class NightState(GameState):
             return f"{victim.name} is not a Werewolf!"
 
 
-    def on_enter(self, game: GameContext, prev_state) ->None:
+    async def on_enter(self, game: GameContext, prev_state) ->None:
         for _, player in game.players.items():
             player.night_vote = None
             player.seer_asked_werewolf = False
-
+        await game.channel.send(
+            "It's been a long day and now night is falling. "
+            "The villagers are asleep and the werewolves are becoming active."
+        )
 
 
 class DayState(GameState):
     """The day-phase of a game-round"""
     async def handle_status(self, game :GameContext, command :StatusCommand) ->str:
-        return "It is day. All players seek for their victim.\nUse the !vote command."
+        result = "It is day. All players seek for their next victim.\n"
+        result += "Currently the following are still alive:\n"
+        for player in game.players.values():
+            if not player.is_dead:
+                result += f"- **{player.name}**\n"
+        result += "Use the !vote command."
+        return result
 
     async def handle_vote(self, game :GameContext, command :VoteCommand) ->str:
         # Check if player is alive
@@ -282,16 +323,16 @@ class DayState(GameState):
                 players_voted[player.day_vote] = players_voted[player.day_vote]+1
                 votes += player.day_vote.name + " "
         victim = None
-        for player, votes in players_voted.items():
-            if votes*2 > nr_players:
+        for player, v in players_voted.items():
+            if v*2 > nr_players:
                 victim = player
 
         if victim is None:
-            return f"""
-            Current votes are {votes}
-            Vote is not finished yet, because the victim must count at least half of the votes.
-            Use !vote command to update your decision.
-            """
+            return (
+                f"Current votes are {votes}\n"
+                "Vote is not finished, because the victim must count at least half of the votes.\n"
+                "Use !vote command to update your decision."
+            )
 
         # We found a victim
         result = f"{victim.name} is killed by the villagers!\n"
@@ -304,15 +345,20 @@ class DayState(GameState):
             result += "\nGAME OVER - the villagers won!"
         if nr_villagers == 0:
             result += "\nGAME OVER - the werewolves won!"
+        await game.channel.send(result)
 
         if nr_werewolves == 0 or nr_villagers == 0:
-            game.change_state( ReadyState() )
+            await game.change_state( ReadyState() )
         else:
-            game.change_state( NightState() )
+            await game.change_state( NightState() )
 
-        return result
+        return ""
 
 
-    def on_enter(self, game: GameContext, prev_state) ->None:
+    async def on_enter(self, game: GameContext, prev_state) ->None:
         for _, player in game.players.items():
             player.day_vote = None
+        await game.channel.send(
+            "It was a long night and the werewolves roamed the streets of the city. "
+            "Wake up, everyone, and wait for the things to come."
+        )

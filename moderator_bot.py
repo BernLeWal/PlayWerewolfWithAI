@@ -44,22 +44,31 @@ GAMES: dict[TextChannel, GameContext] = {}
 
 
 #### Helpers
+def game_from_breakout_channel(channel :TextChannel) ->GameContext:
+    """Fetches the game of the breakout-channel where the Werewolves secretly communicate."""
+    for game in GAMES.values():
+        if game.werewolves_channel == channel:
+            return game
+    return None
+
+
 def game_from_channel(channel :TextChannel) ->GameContext:
     """Fetches the game of the channel, creates a new one if not found."""
     if not channel in GAMES:
-        game = GameContext(channel)
+        game = GameContext(GUILD, channel)
         GAMES[channel] = game
         return game
-    else:
-        return GAMES[channel]
+    return GAMES[channel]
+
 
 def game_from_member(author :Member) ->GameContext:
     """Fetches the game where the author is playing."""
-    for _, game in GAMES.items():
-        for member, _ in game.players.items():
+    for game in GAMES.values():
+        for member in game.players.keys():
             if member==author:
                 return game
     return None
+
 
 
 ###### Discord Event Handlers:
@@ -198,8 +207,19 @@ async def vote(ctx, player_name :str):
                 # GAME OVER occured - also tell the others about it
                 await game.channel.send(result)
     else:
-        game = game_from_channel(ctx.channel)
-        await ctx.send(f"{await game.handle( VoteCommand(ctx.author, player_name))}")
+        game = game_from_breakout_channel(ctx.channel)
+        if not game is None:
+            result = await game.handle( VoteCommand(ctx.author, player_name))
+            await ctx.send(result)
+            if isinstance(game.state, ReadyState):
+                # GAME OVER occured - also tell the others about it
+                await game.channel.send(result)
+        else:
+            game = game_from_channel(ctx.channel)
+            if game is None:
+                logger.warning("Game for channel %s not found!", ctx.channel)
+            else:
+                await ctx.send(f"{await game.handle( VoteCommand(ctx.author, player_name))}")
 
 
 @bot.event

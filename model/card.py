@@ -36,7 +36,7 @@ class SeerCard(Card):
             "Choose a player every night and find out whether they are the werewolf or not.")
 
 
-def shuffle( count :int):
+def create_cards( count :int):
     """Returns a set of cards"""
     result = []
     sum_character = 0
@@ -51,13 +51,15 @@ def shuffle( count :int):
             card = WerewolfCard()
         result.append(card)
         sum_character += card.character
-    random.shuffle(result)
     return result
 
 
 # Usage
 if __name__ == "__main__":
     for nr in range(1,20):
-        cards = shuffle(nr)
+        cards = create_cards(nr)
         CARDS_STR = ", ".join(str(card) for card in cards)
-        print(f"{nr} cards: {CARDS_STR}")
+        print(f"{nr} cards:   {CARDS_STR}")
+        random.shuffle(cards)
+        CARDS_STR = ", ".join(str(card) for card in cards)
+        print(f"{nr} shuffled:{CARDS_STR}")
