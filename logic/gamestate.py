@@ -2,7 +2,7 @@
 State-Machine implementing the various states in the game play
 """
 import random
-from discord import Guild, TextChannel, VoiceChannel, Member
+from discord import Guild, TextChannel, Member
 
 from logic.command import GameCommand
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
@@ -15,7 +15,7 @@ class GameContext:
     def __init__(self, guild: Guild, channel :TextChannel) ->None:
         self.guild = guild
         self.channel = channel
-        self.werewolves_channel : VoiceChannel = None
+        self.werewolves_channel : TextChannel = None
         self.name = channel.name
         self.__state__ = ReadyState()
         self.players: dict[Member, Player] = {}
@@ -142,6 +142,8 @@ class ReadyState(GameState):
         result = "Game started\nThe following cards are in the game:\n"
         for card in cards:
             result += f"- **{card.name}**: {card.desc}\n"
+        result += "See your direct-messages from me, to get to know your own card\n"
+        result += "and further instructions."
         print(result)
 
         random.shuffle(cards)
@@ -161,7 +163,7 @@ class ReadyState(GameState):
             if isinstance(game.players[member].card, WerewolfCard):
                 werewolves.append(member)
         if game.werewolves_channel is None:
-            game.werewolves_channel = await game.guild.create_voice_channel(
+            game.werewolves_channel = await game.guild.create_text_channel(
                 "WerewolvesOnly_" + game.channel.name
             )
         werewolves_str = " ".join( member.display_name for member in werewolves )
@@ -174,7 +176,7 @@ class ReadyState(GameState):
                 "Tell me your decision using the !vote command in this direct-channel."
             )
         await game.werewolves_channel.send(
-            "This is the channel for Werewolves only - **PLEASE DON't CHEAT!**")
+            f"This is the channel for Werewolves in {game.name} only - **PLEASE DON't CHEAT!**\n")
         await game.werewolves_channel.send(
             f"The werewolves team is {werewolves_str},\n"
             "You need to vote for a villager to be your next victim."
