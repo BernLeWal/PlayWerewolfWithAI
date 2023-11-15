@@ -2,15 +2,35 @@
 
 ## Create application logo
 
-### 1. Create a logo suggestion
+### 1. Create a logo suggestion for the application
 
-Used BING Image Creator (DELL-E):
+Used BING Image Creator (DALL-E3):
 ```
 Create a logo for a online game with a howling werwolve at night; a small village in the background; no text
 ```
 
 Results:
-![logos/_599c3721-7698-4926-9174-6f3d840d9aac.jpg](logos/_599c3721-7698-4926-9174-6f3d840d9aac.jpg)
+![logos/title.jpg](logos/title.jpg)
+
+### 2. Create a logo for the moderator bot
+
+Used BING Image Creator (DALL-E3):
+```
+Logo Bild für einen Spielleiter, der das Kartenspiel moderiert, keinen Text im Bild!
+```
+
+Results:
+![logos/moderator.jpg](logos/moderator.jpg)
+
+### 3. Create a logo for the ai-player bot
+
+Used BING Image Creator (DALL-E3):
+```
+Logo Bild für einen virtuellen Spieler im Kartenspiel "Werwölfe vom Düsterwald". Er ist ein Computerprogramm bzw. ein AI Agent.Ohne Text. A darker color palette, often with shades of black.
+```
+
+Results:
+![logos/ai-player.jpg](logos/ai-player.jpg)
 
 ## Tool suggestions
 
