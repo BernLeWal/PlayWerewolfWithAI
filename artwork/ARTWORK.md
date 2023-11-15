@@ -10,7 +10,7 @@ Create a logo for a online game with a howling werwolve at night; a small villag
 ```
 
 Results:
-![logos/title.jpg](logos/title.jpg)
+![logos/title.png](logos/title.png)
 
 ### 2. Create a logo for the moderator bot
 
@@ -20,7 +20,7 @@ Logo Bild für einen Spielleiter, der das Kartenspiel moderiert, keinen Text im 
 ```
 
 Results:
-![logos/moderator.jpg](logos/moderator.jpg)
+![logos/moderator.png](logos/moderator.png)
 
 ### 3. Create a logo for the ai-player bot
 
@@ -30,8 +30,8 @@ Logo Bild für einen virtuellen Spieler im Kartenspiel "Werwölfe vom Düsterwal
 ```
 
 Results:
-![logos/ai-player1.jpg](logos/ai-player1.jpg)
-![logos/ai-player2.jpg](logos/ai-player2.jpg)
+![logos/ai-player1.png](logos/ai-player1.png)
+![logos/ai-player2.png](logos/ai-player2.png)
 
 ## Tool suggestions
 
