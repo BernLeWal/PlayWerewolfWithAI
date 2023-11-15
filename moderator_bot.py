@@ -1,5 +1,5 @@
 #!/bin/python
-""" moderatorBot.py
+""" moderator_bot.py
 Discord Bot who will automatically be the moderator of all Werewolves games 
 on the configured Discord Guild.
 """
@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 # Load configuration
 load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 DISCORD_GUILD = os.getenv('DISCORD_GUILD')
 DEV_USER_ID = os.getenv('DEV_USER_ID')
+MODERATOR_TOKEN = os.getenv('MODERATOR_TOKEN')
 
 
 # Setup discord connection and the bot
@@ -233,4 +233,4 @@ async def on_command_error(ctx, error):
         await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
 
 
-bot.run(DISCORD_TOKEN)
+bot.run(MODERATOR_TOKEN)
