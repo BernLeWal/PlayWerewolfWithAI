@@ -30,7 +30,8 @@ Logo Bild für einen virtuellen Spieler im Kartenspiel "Werwölfe vom Düsterwal
 ```
 
 Results:
-![logos/ai-player.jpg](logos/ai-player.jpg)
+![logos/ai-player1.jpg](logos/ai-player2.jpg)
+![logos/ai-player1.jpg](logos/ai-player2.jpg)
 
 ## Tool suggestions
 
