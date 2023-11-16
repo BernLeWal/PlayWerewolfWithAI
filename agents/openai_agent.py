@@ -34,7 +34,7 @@ class OpenAIAgent:
 
 
     def system(self, content :str):
-        """Starts with a new context (its a reset), and provides the chat-systems general behavior"""
+        """Starts with a new context (a reset), and provides the chat-systems general behavior"""
         self.messages = []
         self.messages.append( {"role": "system", "content": content} )
 
@@ -46,10 +46,13 @@ class OpenAIAgent:
     def ask(self, prompt :str) ->str:
         """Sends a prompt to ChatGPT, will track the result in the context"""
         self.messages.append({"role": "user", "content": prompt})
-        result = self.client.chat.completions.create(
+        chat_completion = self.client.chat.completions.create(
             messages=self.messages,
             model=self.model_name,
         )
+        result = ""
+        for choice in chat_completion.choices:
+            result += choice.message.content + "\n"
         self.messages.append({"role": "assistant", "content": result} )
         return result
 
@@ -66,4 +69,3 @@ if __name__ == "__main__":
         "The Los Angeles Dodgers won the World Series in 2020."
     )
     print( agent.ask("Where was it played?"))
-
