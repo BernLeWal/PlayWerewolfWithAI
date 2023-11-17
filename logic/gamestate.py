@@ -2,12 +2,18 @@
 State-Machine implementing the various states in the game play
 """
 import random
+import logging
 from discord import Guild, TextChannel, Member
 
 from logic.command import GameCommand
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
 from model.player import Player
 from model.card import create_cards, WerewolfCard, SeerCard
+
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class GameContext:
@@ -123,12 +129,12 @@ class ReadyState(GameState):
         return result
 
     async def handle_join(self, game: GameContext, command :JoinCommand) ->str:
-        print(f"{command.author} joins the game {game.name}")
+        logger.info("%s joins the game %s", command.author, game.name)
         game.players[command.author] = Player(command.author.display_name)
         return f"{command.author.display_name} joined the game."
 
     async def handle_quit(self, game: GameContext, command :QuitCommand) ->str:
-        print(f"{command.author} quits the game {game.name}")
+        logger.info("%s quits the game %s", command.author, game.name)
         if command.author in game.players:
             del game.players[command.author]
         return f"{command.author.display_name} quits the game."
@@ -144,18 +150,21 @@ class ReadyState(GameState):
             result += f"- **{card.name}**: {card.desc}\n"
         result += "See your direct-messages from me, to get to know your own card\n"
         result += "and further instructions."
-        print(result)
+        logger.info(result)
 
         random.shuffle(cards)
         for member in game.players.keys():
             card = cards.pop()
-            print( f"{member} gets card {card}" )
+            logger.info( "%s gets card %s", member, card )
             game.players[member].card = card
+            logger.debug( "Send DM to %s", member)
             await member.create_dm()
+            logger.debug( "Send DM to %s", member)
             await member.dm_channel.send(
                 f"You got the card {card.name} in game {game.name}.\n"
                 f"{card.desc}"
             )
+            logger.debug( "Sending DM to %s done", member)
 
         # Tell all the Werewolves who they are
         werewolves = []
@@ -167,7 +176,7 @@ class ReadyState(GameState):
                 "WerewolvesOnly_" + game.channel.name
             )
         werewolves_str = " ".join( member.display_name for member in werewolves )
-        print(f"The werewolves are:{werewolves_str}")
+        logger.info("The werewolves are: %s", werewolves_str)
         for member in werewolves:
             await member.dm_channel.send(
                 f"The werewolves team is {werewolves_str},\n"
