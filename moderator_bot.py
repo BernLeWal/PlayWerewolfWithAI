@@ -6,6 +6,7 @@ on the configured Discord Guild.
 import os
 import sys
 import logging
+import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -13,6 +14,7 @@ import discord
 from discord.ext import commands
 from discord import TextChannel, Member
 
+from plaier_bot import PlaierBot
 from logic.gamestate import GameContext, ReadyState
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
 
@@ -25,8 +27,6 @@ logger = logging.getLogger(__name__)
 # Load configuration
 load_dotenv()
 DISCORD_GUILD = os.getenv('DISCORD_GUILD')
-DEV_USER_ID = os.getenv('DEV_USER_ID')
-MODERATOR_TOKEN = os.getenv('MODERATOR_TOKEN')
 
 
 # Setup discord connection and the bot
@@ -186,7 +186,7 @@ async def quit_bot(ctx):
     """To leave a game (or stop the bot)"""
     if is_general_channel(ctx.channel):
         #The master user (it's me, the developer), stops the bot.
-        if str(ctx.author.id) == DEV_USER_ID:
+        if str(ctx.author.id) == os.getenv('DEV_USER_ID'):
             logger.info("%s shuts down the bot!", ctx.author.id)
             await ctx.send("I'll take a nap, bye...")
             await bot.close()
@@ -258,4 +258,10 @@ async def on_command_error(ctx, error):
 if __name__ == "__main__":
     if not os.path.exists('data'):
         os.makedirs('data')
-    bot.run(MODERATOR_TOKEN)
+
+    plaier = PlaierBot(intents, DISCORD_GUILD)
+
+    loop = asyncio.get_event_loop()
+    loop.create_task( bot.start(os.getenv('MODERATOR_TOKEN')) )   #bot.run(MODERATOR_TOKEN)
+    loop.create_task( plaier.start(os.getenv('PLAIER_TOKEN')) )
+    loop.run_forever()

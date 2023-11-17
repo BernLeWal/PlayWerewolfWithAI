@@ -49,6 +49,8 @@ Open the Discord Home in the browser, and open the "General" channel in your gui
 
 ## Run as container
 
+ATTENTION: put a .env file with your keys in the root directory.
+
 ### Build the container
 ```
 docker build -t wairewolves .

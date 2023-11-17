@@ -9,10 +9,9 @@ COPY agents /var/wairewolves/agents
 COPY doc /var/wairewolves/doc
 COPY logic /var/wairewolves/logic
 COPY model /var/wairewolves/model
-COPY util /var/wairewolves/util
 COPY .env /var/wairewolves/
 COPY *.py /var/wairewolves/
 COPY *.md /var/wairewolves/
 
 WORKDIR /var/wairewolves
-CMD ["sh", "-c", "python ./moderator_bot.py"]
+CMD ["sh", "-c", "python ./app.py"]
