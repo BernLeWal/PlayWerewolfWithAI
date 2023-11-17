@@ -45,3 +45,16 @@ python app.py
 ```
 
 Open the Discord Home in the browser, and open the "General" channel in your guild.
+
+
+## Run as container
+
+### Build the container
+```
+docker build -t wairewolves .
+```
+
+### Run the container
+```
+docker run -d --name wairewolves wairewolves
+```

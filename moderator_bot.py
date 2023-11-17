@@ -253,4 +253,9 @@ async def on_command_error(ctx, error):
         await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
 
 
-bot.run(MODERATOR_TOKEN)
+
+# Application entry point
+if __name__ == "__main__":
+    if not os.path.exists('data'):
+        os.makedirs('data')
+    bot.run(MODERATOR_TOKEN)
