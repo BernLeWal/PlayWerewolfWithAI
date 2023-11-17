@@ -8,7 +8,7 @@ import logging
 from dotenv import load_dotenv
 
 import discord
-from discord import TextChannel
+from discord import Intents, TextChannel
 
 from logic.gaimstate import GAImContext
 from model.plaier import PlAIer
@@ -19,25 +19,14 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(nam
 logger = logging.getLogger(__name__)
 
 
-# Load configuration
-load_dotenv()
-DISCORD_GUILD = os.getenv('DISCORD_GUILD')
-DEV_USER_ID = os.getenv('DEV_USER_ID')
-PLAIER_TOKEN = os.getenv('PLAIER_TOKEN')
 
 
-class PlayerBot(discord.Client):
+class PlaierBot(discord.Client):
     """Discord Bot who will be used for the AI-agents (plAIer)"""
 
-    def __init__(self) ->None:
-        # Setup discord connection and the bot
-        intents = discord.Intents.default()
-        intents.message_content = True
-        intents.messages = True
-        intents.guilds = True
-        intents.members = True  # This is necessary to access the member list
-        super().__init__(intents=intents)
-
+    def __init__(self, my_intents :Intents, discord_guild_str :str) ->None:
+        super().__init__(intents=my_intents)
+        self.discord_guild_str = discord_guild_str
         self.guild = None    # is set in on_ready()
         self.gaims: dict[TextChannel, GAImContext] = {}
 
@@ -59,16 +48,10 @@ class PlayerBot(discord.Client):
     ###### Discord Event Handlers:
     async def on_ready(self):
         """Bot connected to Discord"""
-        self.guild = discord.utils.get(self.guilds, name=DISCORD_GUILD)
+        self.guild = discord.utils.get(self.guilds, name=self.discord_guild_str)
 
-        logger.info("%s is connected to the following guild:\n%s(id: %s)\n",
+        logger.info("%s is connected to the following guild:%s(id: %s)\n",
             self.user, self.guild.name, self.guild.id )
-
-        members = '\n - '.join([str(member) for member in self.guild.members])
-        logger.info("Guild Members:\n - %s\n", members)
-
-        channels = '\n - '.join([str(channel) for channel in self.guild.text_channels])
-        logger.info("Guild Channels:\n - %s\n", channels)
 
         general = self.guild.text_channels[0]
         if general and general.permissions_for(self.guild.me).send_messages:
@@ -121,5 +104,17 @@ class PlayerBot(discord.Client):
 
 
 
-client = PlayerBot()
-client.run(PLAIER_TOKEN)
+# Application entry point
+if __name__ == "__main__":
+    # Load configuration
+    load_dotenv()
+
+    # Setup discord connection and the bot
+    intents = discord.Intents.default()
+    intents.message_content = True
+    intents.messages = True
+    intents.guilds = True
+    intents.members = True  # This is necessary to access the member list
+
+    client = PlaierBot(intents, os.getenv('DISCORD_GUILD'))
+    client.run(os.getenv('PLAIER_TOKEN'))
