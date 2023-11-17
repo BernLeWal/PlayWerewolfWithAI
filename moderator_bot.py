@@ -1,5 +1,5 @@
 #!/bin/python
-""" moderatorBot.py
+""" moderator_bot.py
 Discord Bot who will automatically be the moderator of all Werewolves games 
 on the configured Discord Guild.
 """
@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 # Load configuration
 load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 DISCORD_GUILD = os.getenv('DISCORD_GUILD')
 DEV_USER_ID = os.getenv('DEV_USER_ID')
+MODERATOR_TOKEN = os.getenv('MODERATOR_TOKEN')
 
 
 # Setup discord connection and the bot
@@ -69,6 +69,9 @@ def game_from_member(author :Member) ->GameContext:
                 return game
     return None
 
+def is_general_channel(channel :TextChannel) ->bool:
+    """Checks if the channel is the general-channel (which is not used for games)"""
+    return channel == GUILD.text_channels[0]
 
 
 ###### Discord Event Handlers:
@@ -120,6 +123,14 @@ async def on_message(message):
         timestamp_string = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'{timestamp_string};{message.author};{message.content}\n')
 
+    # Handle join-command here, because it would ignore these from the plAIer-bot
+    if message.content == "!join" and message.author.display_name == "plAIer":
+        if is_general_channel(message.channel):
+            await message.channel.send( "Games can only be played in the other channels!\n" )
+        elif not isinstance(message.channel, discord.DMChannel):
+            game = game_from_channel(message.channel)
+            await message.channel.send(f"{await game.handle( JoinCommand(message.author))}")
+
     # Without this, commands won't get processed
     await bot.process_commands(message)
 
@@ -137,7 +148,7 @@ async def show_rules(ctx):
     "Every channel except general represents one game")
 async def status(ctx):
     """Status command"""
-    if ctx.channel == GUILD.text_channels[0]:
+    if is_general_channel(ctx.channel):
         await ctx.send(
             "ModeratorBot is up and running!\n"
             "Join one of the channels to join a Werewolves game!"
@@ -152,7 +163,7 @@ async def status(ctx):
 @bot.command(name='join', help='Join the game in the current channel')
 async def join(ctx):
     """Join command"""
-    if ctx.channel == GUILD.text_channels[0]:
+    if is_general_channel(ctx.channel):
         await ctx.send( "Games can only be played in the other channels!\n" )
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
@@ -161,10 +172,19 @@ async def join(ctx):
         await ctx.send(f"{await game.handle( JoinCommand(ctx.author))}")
 
 
+@bot.command(name='invite', help='Invite an AI-agent to play with you')
+async def invite(ctx, player_name : str = ""):
+    """Invite command"""
+    if is_general_channel(ctx.channel):
+        await ctx.send( "Games can only be played in the other channels!\n")
+    else:
+        logger.info("AI-agent with name %s was invited!", player_name)
+
+
 @bot.command(name='quit', help='Leaves the game')
 async def quit_bot(ctx):
     """To leave a game (or stop the bot)"""
-    if ctx.channel == GUILD.text_channels[0]:
+    if is_general_channel(ctx.channel):
         #The master user (it's me, the developer), stops the bot.
         if str(ctx.author.id) == DEV_USER_ID:
             logger.info("%s shuts down the bot!", ctx.author.id)
@@ -184,7 +204,7 @@ async def quit_bot(ctx):
 @bot.command(name='start', help='Starts the game with all joint members in the current channel.')
 async def start(ctx):
     """Start command"""
-    if ctx.channel == GUILD.text_channels[0]:
+    if is_general_channel(ctx.channel):
         await ctx.send( "Games can only be played in the other channels!" )
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
@@ -196,7 +216,7 @@ async def start(ctx):
 @bot.command(name='vote', help='Votes a player to be selected for the next victim.')
 async def vote(ctx, player_name :str):
     """Vote command"""
-    if ctx.channel == GUILD.text_channels[0]:
+    if is_general_channel(ctx.channel):
         await ctx.send( "Games can only be player in the other channels!")
     elif isinstance(ctx.channel, discord.DMChannel):
         game = game_from_member(ctx.author)
@@ -233,4 +253,4 @@ async def on_command_error(ctx, error):
         await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
 
 
-bot.run(DISCORD_TOKEN)
+bot.run(MODERATOR_TOKEN)

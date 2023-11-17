@@ -6,7 +6,7 @@ from model.card import Card
 
 class Player:
     """Representing a player"""
-    def __init__(self, name :str):
+    def __init__(self, name :str) ->None:
         self.name = name
         self.card : Card = None
         self.night_vote : Player = None
