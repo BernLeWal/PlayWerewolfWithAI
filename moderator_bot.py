@@ -6,7 +6,6 @@ on the configured Discord Guild.
 import os
 import sys
 import logging
-import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -14,9 +13,9 @@ import discord
 from discord.ext import commands
 from discord import TextChannel, Member
 
-from plaier_bot import PlaierBot
 from logic.gamestate import GameContext
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
+from model.player import AIAgentPlayer
 
 
 # Set up logging
@@ -51,20 +50,22 @@ class ModeratorBot(commands.Bot):
         return None
 
 
-    def game_from_channel(self, channel :TextChannel) ->GameContext:
+    def game_from_channel(self, channel :TextChannel, create = True) ->GameContext:
         """Fetches the game of the channel, creates a new one if not found."""
         if not channel in self.games:
+            if not create:
+                return None
             game = GameContext(self.guild, channel)
             self.games[channel] = game
             return game
         return self.games[channel]
 
 
-    def game_from_member(self, author :Member) ->GameContext:
+    def game_from_member(self, player_name) ->GameContext:
         """Fetches the game where the author is playing."""
         for game in self.games.values():
-            for member in game.players.keys():
-                if member==author:
+            for name in game.players.keys():
+                if player_name==name:
                     return game
         return None
 
@@ -140,13 +141,16 @@ async def on_message(message):
         timestamp_string = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'{timestamp_string};{message.author};{message.content}\n')
 
-    # Handle join-command here, because it would ignore these from the plAIer-bot
-    if message.content == "!join" and message.author.display_name == "plAIer":
-        if bot.is_general_channel(message.channel):
-            await message.channel.send( "Games can only be played in the other channels!\n" )
-        elif not isinstance(message.channel, discord.DMChannel):
-            game = bot.game_from_channel(message.channel)
-            await game.handle( JoinCommand(message.author))
+    if not bot.is_general_channel(message.channel):
+        if not isinstance(message.channel, discord.DMChannel):
+            # Send messages also to AI-agent players
+            game = bot.game_from_channel( message.channel, False )
+            if not game is None:
+                for player in game.players.values():
+                    if isinstance(player, AIAgentPlayer):
+                        await player.add_message(message.channel,
+                                                message.author.display_name,
+                                                message.content)
 
     # Without this, commands won't get processed
     await bot.process_commands(message)
@@ -190,12 +194,14 @@ async def join(ctx):
 
 
 @bot.command(name='invite', help='Invite an AI-agent to play with you')
-async def invite(ctx, player_name : str = ""):
+async def invite(ctx, player_name : str):
     """Invite command"""
     if bot.is_general_channel(ctx.channel):
         await ctx.send( "Games can only be played in the other channels!\n")
     else:
         logger.info("AI-agent with name %s was invited!", player_name)
+        game = bot.game_from_channel(ctx.channel)
+        await game.handle( JoinCommand(None, player_name))
 
 
 @bot.command(name='quit', help='Leaves the game')
@@ -236,19 +242,21 @@ async def vote(ctx, player_name :str):
     if bot.is_general_channel(ctx.channel):
         await ctx.send( "Games can only be player in the other channels!")
     elif isinstance(ctx.channel, discord.DMChannel):
-        game = bot.game_from_member(ctx.author)
+        game = bot.game_from_member(ctx.author.display_name)
         if not game is None:
-            await game.handle( VoteCommand(ctx.author, player_name))
+            await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
     else:
         game = bot.game_from_breakout_channel(ctx.channel)
         if not game is None:
-            await game.handle( VoteCommand(ctx.author, player_name))
+            # TODO support werewolve's votes here:
+            await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
         else:
             game = bot.game_from_channel(ctx.channel)
             if game is None:
                 logger.warning("Game for channel %s not found!", ctx.channel)
             else:
-                await game.handle( VoteCommand(ctx.author, player_name))
+                # TODO support werewolve's votes here:
+                await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
 
 
 @bot.event
@@ -269,9 +277,4 @@ if __name__ == "__main__":
     if not os.path.exists('data'):
         os.makedirs('data')
 
-    plaier = PlaierBot(os.getenv('DISCORD_GUILD'))
-
-    loop = asyncio.get_event_loop()
-    loop.create_task( bot.start(os.getenv('MODERATOR_TOKEN')) )   #bot.run(MODERATOR_TOKEN)
-    loop.create_task( plaier.start(os.getenv('PLAIER_TOKEN')) )
-    loop.run_forever()
+    bot.run(os.getenv('MODERATOR_TOKEN'))

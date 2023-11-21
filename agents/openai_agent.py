@@ -40,8 +40,10 @@ class OpenAIAgent:
 
     def advice(self, question :str, answer :str) ->None:
         """Provides ChatGPT with a predefined question-answer pair """
-        self.messages.append( {"role": "user", "content": question})
-        self.messages.append( {"role": "assistant", "content": answer} )
+        if not question is None:
+            self.messages.append( {"role": "user", "content": question})
+        if not answer is None:
+            self.messages.append( {"role": "assistant", "content": answer} )
 
     def ask(self, prompt :str) ->str:
         """Sends a prompt to ChatGPT, will track the result in the context"""
