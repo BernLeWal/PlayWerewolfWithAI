@@ -8,7 +8,7 @@ import logging
 from dotenv import load_dotenv
 
 import discord
-from discord import Intents, TextChannel
+from discord import TextChannel
 
 from logic.gaimstate import GAImContext
 from model.plaier import PlAIer
@@ -24,7 +24,13 @@ logger = logging.getLogger(__name__)
 class PlaierBot(discord.Client):
     """Discord Bot who will be used for the AI-agents (plAIer)"""
 
-    def __init__(self, my_intents :Intents, discord_guild_str :str) ->None:
+    def __init__(self, discord_guild_str :str) ->None:
+        # Setup discord connection and the bot
+        my_intents = discord.Intents.default()
+        my_intents.message_content = True
+        my_intents.messages = True
+        my_intents.guilds = True
+        my_intents.members = True  # This is necessary to access the member list
         super().__init__(intents=my_intents)
         self.discord_guild_str = discord_guild_str
         self.guild = None    # is set in on_ready()
@@ -109,12 +115,5 @@ if __name__ == "__main__":
     # Load configuration
     load_dotenv()
 
-    # Setup discord connection and the bot
-    intents = discord.Intents.default()
-    intents.message_content = True
-    intents.messages = True
-    intents.guilds = True
-    intents.members = True  # This is necessary to access the member list
-
-    client = PlaierBot(intents, os.getenv('DISCORD_GUILD'))
+    client = PlaierBot(os.getenv('DISCORD_GUILD'))
     client.run(os.getenv('PLAIER_TOKEN'))
