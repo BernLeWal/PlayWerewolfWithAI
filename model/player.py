@@ -4,7 +4,7 @@ Representing a player in a Werewolve game
 import asyncio
 import logging
 
-from discord import TextChannel, Member
+from discord import Member
 from agents.openai_agent import OpenAIAgent
 
 from model.card import Card
@@ -57,13 +57,14 @@ class HumanPlayer(Player):
 
 class AIAgentPlayer(Player):
     """Representing a AI-agent player"""
-    def __init__(self, name :str) ->None:
-        super().__init__(str)
+    def __init__(self, name :str, bot) ->None:
+        super().__init__(name)
         self.message_queue = asyncio.Queue()
         self.agent = OpenAIAgent()
+        self.bot = bot
         logger.info("Created AIAgentPlayer with name %s", self.name)
 
-        self.current_channel = None
+        self.current_channel_id = -1
         self.current_messages : str = ""
         self.timer_task_name = "$$TimerTask$$"
 
@@ -75,34 +76,34 @@ class AIAgentPlayer(Player):
     async def __worker_task__(self):
         while True:
             # Get message from the queue and process it
-            (channel, author_name, message) = await self.message_queue.get()
-            logger.debug("Worker processing: %s %s:%s", channel, author_name, message)
+            (channel_id, author_name, message) = await self.message_queue.get()
+            logger.debug("Worker processing: channel_id=%d %s:%s", channel_id, author_name, message)
 
             if author_name == "ModeratorBot":
                 if message == "!quit":
                     break
-                await channel.send(f"{self.agent.ask(message)}")
+                await self.bot.get_channel(channel_id).send(f"{self.agent.ask(message)}")
             elif author_name == self.timer_task_name:
-                if not self.current_channel is None:
+                if not self.current_channel_id == -1:
                     await self.__send_current_messages__()
             else:
-                if self.current_channel is None:
+                if self.current_channel_id == -1:
                     # It's a new message
-                    self.current_channel = channel
+                    self.current_channel_id = channel_id
                     self.current_messages = f"{author_name}: {message}\n"
-                elif self.current_channel == channel:
+                elif self.current_channel_id == channel_id:
                     # It adds to the current collaboration
                     self.current_messages += f"{author_name}: {message}\n"
                 else:
                     # The collaboration moves to a different channel
                     # --> send current collab to agent now
                     await self.__send_current_messages__()
-                    self.current_channel = channel
+                    self.current_channel_id = channel_id
                     self.current_messages = f"{author_name}: {message}\n"
 
 
     async def __send_current_messages__(self) ->None:
-        if not self.current_channel is None and len(self.current_messages)>0:
+        if self.current_channel_id > -1 and len(self.current_messages)>0:
             logger.info("Send to LLM: %s", self.current_messages)
             self.agent.advice(
                 "What did the other players say lately?",
@@ -110,14 +111,14 @@ class AIAgentPlayer(Player):
             )
             self.current_messages = ""
             prompt = "Take part of the recent conversation or give answer."
-            await self.current_channel.send(f"{self.agent.ask(prompt)}")
-            self.current_channel = None
+            await self.bot.get_channel(self.current_channel_id).send(f"{self.agent.ask(prompt)}")
+            self.current_channel_id = -1
 
 
     async def __timer_task__(self):
         while True:
             await asyncio.sleep(60)   # produce a reminder every minute
-            await self.message_queue.put( (None, self.timer_task_name, "SendCurrentMessages") )
+            await self.message_queue.put( (-1, self.timer_task_name, "SendCurrentMessages") )
 
 
     async def start(self) ->None:
@@ -137,7 +138,7 @@ class AIAgentPlayer(Player):
         )
 
 
-    async def add_message(self, channel :TextChannel, author_name :str, message :str) ->None:
+    async def add_message(self, channel_id :int, author_name :str, message :str) ->None:
         """Put a message in the queue"""
         logger.info("Inform AI-Player %s about message '%s:%s'", self.name, author_name, message)
-        await self.message_queue.put( (channel, author_name, message) )
+        await self.message_queue.put( (channel_id, author_name, message) )

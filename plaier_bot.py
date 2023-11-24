@@ -71,18 +71,33 @@ class PlaierBot(discord.Client):
         """A member sent a message"""
         if message.author == self.user:
             return
-        if message.content.startswith('!'):
-            return
         logger.info("%s: %s=%s", message.channel, message.author, message.content)
 
         # Send messages also to AI-agent players
         game = self.game_from_channel( message.channel )
         if not game is None:
-            for player in game.players.values():
-                if isinstance(player, AIAgentPlayer):
-                    await player.add_message(message.channel,
-                                            message.author.display_name,
-                                            message.content)
+            if message.content.startswith("!invite ") and len(message.content)>9:
+                # Add an AI-Agent player
+                ai_player_name = message.content[8:]
+                logger.info("AI-Agent %s joins the game %s", ai_player_name, game.name)
+                player = AIAgentPlayer(ai_player_name, self)
+                game.players[ai_player_name] = player
+                await player.init()
+                await player.add_message(
+                    game.channel.id,
+                    "ModeratorBot", 
+                    "Introduce yourself to the other players."
+                )
+                await player.start()
+            elif message.content.startswith("!"):
+                pass
+            else:
+                # pass the messages to all players
+                for player in game.players.values():
+                    if isinstance(player, AIAgentPlayer):
+                        await player.add_message(message.channel.id,
+                                                message.author.display_name,
+                                                message.content)
 
 
 # Application entry point

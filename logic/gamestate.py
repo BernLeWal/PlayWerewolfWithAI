@@ -140,23 +140,9 @@ class ReadyState(GameState):
         await game.send_msg( result )
 
     async def handle_join(self, game: GameContext, command :JoinCommand) ->None:
-        if command.author is None:
-            # Add an AI-Agent player
-            logger.info("AI-Agent %s joins the game %s", command.ai_player_name, game.name)
-            player = AIAgentPlayer(command.ai_player_name)
-            game.players[command.get_player_name()] = player
-            await player.init()
-            await player.add_message(
-                game.channel,
-                "ModeratorBot", 
-                "Introduce yourself to the other players."
-            )
-            await player.start()
-        else:
-            # Add an human player
-            logger.info("%s joins the game %s", command.author, game.name)
-            game.players[command.get_player_name()] = HumanPlayer(command.author)
-
+        # Add an human player
+        logger.info("%s joins the game %s", command.author, game.name)
+        game.players[command.get_player_name()] = HumanPlayer(command.author)
         await game.send_msg( f"{command.get_player_name()} joined the game." )
 
     async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:

@@ -204,7 +204,7 @@ async def invite(ctx, player_name : str):
     else:
         logger.info("AI-agent with name %s was invited!", player_name)
         game = bot.game_from_channel(ctx.channel)
-        await game.handle( JoinCommand(None, player_name))
+        # processing is done in plaier_bot.py
 
 
 @bot.command(name='quit', help='Leaves the game')
