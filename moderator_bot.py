@@ -203,7 +203,7 @@ async def invite(ctx, player_name : str):
         await ctx.send( "Games can only be played in the other channels!\n")
     else:
         logger.info("AI-agent with name %s was invited!", player_name)
-        game = bot.game_from_channel(ctx.channel)
+        bot.game_from_channel(ctx.channel)
         # processing is done in plaier_bot.py
 
 

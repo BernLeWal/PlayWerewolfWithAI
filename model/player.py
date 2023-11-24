@@ -66,7 +66,15 @@ class AIAgentPlayer(Player):
 
         self.current_channel_id = -1
         self.current_messages : str = ""
+
         self.timer_task_name = "$$TimerTask$$"
+        self.timer_task = None
+        self.worker_task = None
+
+    def __del__(self) ->None:
+        self.stop()
+        logger.info("Deleted AIAgentPlayer named %s", self.name)
+
 
     async def send_dm(self, msg :str) ->None:
         """Sends a direct message to the player"""
@@ -123,7 +131,18 @@ class AIAgentPlayer(Player):
 
     async def start(self) ->None:
         """Start the worker thread"""
-        await asyncio.gather(self.__timer_task__(), self.__worker_task__())
+        self.worker_task = asyncio.create_task(self.__worker_task__())
+        self.timer_task = asyncio.create_task(self.__timer_task__())
+        await asyncio.gather(self.timer_task, self.worker_task)
+
+    def stop(self) ->None:
+        """Stop the worker threads"""
+        if not self.worker_task is None:
+            self.worker_task.cancel()
+            self.worker_task = None
+        if not self.timer_task is None:
+            self.timer_task.cancel()
+            self.timer_task = None
 
 
     async def init(self) ->None:

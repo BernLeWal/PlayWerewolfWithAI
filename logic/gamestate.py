@@ -124,6 +124,20 @@ class GameState:
         """Called after the state is deactivated"""
 
 
+    async def handle_game_over(self, game :GameContext) ->bool:
+        """Check if the game is over, if yes --> handle it"""
+        nr_werewolves, nr_villagers = game.check_gameover()
+        if nr_werewolves == 0:
+            await game.send_msg("GAME OVER - the villagers won!")
+        if nr_villagers == 0:
+            await game.send_msg("GAME OVER - the werewolves won!")
+
+        if nr_werewolves == 0 or nr_villagers == 0:
+            await game.change_state( ReadyState() )
+            return True
+        return False    # game continues
+
+
 
 class ReadyState(GameState):
     """In the ReadyState the members may join themselves to the players list"""
@@ -147,7 +161,7 @@ class ReadyState(GameState):
 
     async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
         logger.info("%s quits the game %s", command.author, game.name)
-        if command.author in game.players:
+        if command.author.display_name in game.players:
             del game.players[command.author.display_name]
         await game.send_msg( f"{command.author.display_name} quits the game." )
 
@@ -205,8 +219,11 @@ class ReadyState(GameState):
 
 
     async def on_enter(self, game: GameContext, prev_state) ->None:
-        for player in game.players.values():
-            player.reset()
+        while len(game.players)>0:
+            _, player = game.players.popitem()
+            if isinstance(player, AIAgentPlayer ):
+                player.stop()
+            del player
 
         await game.send_msg(
             "This GAME is over!\n"
@@ -230,6 +247,12 @@ class NightState(GameState):
         result += "Werewolves use the !vote command."
         await game.send_msg( result )
 
+    async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
+        logger.info("%s quits the game %s", command.author, game.name)
+        if command.author.display_name in game.players:
+            del game.players[command.author.display_name]
+        await game.send_msg( f"{command.author.display_name} quits the game." )
+        await self.handle_game_over(game)
 
     async def handle_vote(self, game :GameContext, command :VoteCommand) ->None:
         # Check if the player is allowed to vote
@@ -278,18 +301,9 @@ class NightState(GameState):
         result = f"{victim.name} is killed by the Werewolves!\n"
         result += f"{victim.name} was a {victim.card.name}."
         victim.is_dead = True
-
-        # Check if the game is over
-        nr_werewolves, nr_villagers = game.check_gameover()
-        if nr_werewolves == 0:
-            result += "\nGAME OVER - the villagers won!"
-        if nr_villagers == 0:
-            result += "\nGAME OVER - the werewolves won!"
         await game.send_msg(result)
 
-        if nr_werewolves == 0 or nr_villagers == 0:
-            await game.change_state( ReadyState() )
-        else:
+        if not await self.handle_game_over(game):
             await game.change_state( DayState() )
 
 
@@ -324,6 +338,14 @@ class DayState(GameState):
                 result += f"- **{player.name}**\n"
         result += "Use the !vote command."
         await game.send_msg( result )
+
+
+    async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
+        logger.info("%s quits the game %s", command.author, game.name)
+        if command.author.display_name in game.players:
+            del game.players[command.author.display_name]
+        await game.send_msg( f"{command.author.display_name} quits the game." )
+        await self.handle_game_over(game)
 
 
     async def handle_vote(self, game :GameContext, command :VoteCommand) ->None:
@@ -364,21 +386,11 @@ class DayState(GameState):
         result = f"{victim.name} is killed by the villagers!\n"
         result += f"{victim.name} was a {victim.card.name}."
         victim.is_dead = True
-
-        # Check if the game is over
-        nr_werewolves, nr_villagers = game.check_gameover()
-        if nr_werewolves == 0:
-            result += "\nGAME OVER - the villagers won!"
-        if nr_villagers == 0:
-            result += "\nGAME OVER - the werewolves won!"
         await game.send_msg(result)
 
-        if nr_werewolves == 0 or nr_villagers == 0:
-            await game.change_state( ReadyState() )
-        else:
+        if not await self.handle_game_over(game):
             await game.change_state( NightState() )
 
-        return ""
 
 
     async def on_enter(self, game: GameContext, prev_state) ->None:
