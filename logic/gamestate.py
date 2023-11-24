@@ -3,16 +3,16 @@ State-Machine implementing the various states in the game play
 """
 import random
 import logging
-from discord import Guild, TextChannel, Member
+from discord import Guild, TextChannel
 
 from logic.command import GameCommand
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
-from model.player import Player
+from model.player import Player, HumanPlayer, AIAgentPlayer
 from model.card import create_cards, WerewolfCard, SeerCard
 
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -24,11 +24,11 @@ class GameContext:
         self.werewolves_channel : TextChannel = None
         self.name = channel.name
         self.__state__ = ReadyState()
-        self.players: dict[Member, Player] = {}
+        self.players: dict[str, Player] = {}
 
-    async def handle(self, command :GameCommand) ->str:
+    async def handle(self, command :GameCommand) ->None:
         """Handle the provided command, returns a text message to be displaye in the channel"""
-        return await self.__state__.handle(self, command)
+        await self.__state__.handle(self, command)
 
     async def change_state(self, next_state) ->None:
         """Change the state, will automatically call on_leave/on_enter"""
@@ -38,9 +38,14 @@ class GameContext:
         self.__state__ = next_state
         await self.__state__.on_enter( self, prev_state )
 
+
+    async def send_msg(self, msg :str) ->None:
+        """Sends a message in the channel of the game"""
+        await self.channel.send( msg )
+
     def find_player_by_name(self, player_name: str) ->Player:
         """Finds the player by player_name"""
-        for _, player in self.players.items():
+        for player in self.players.values():
             if player.name == player_name:
                 return player
         return None
@@ -48,7 +53,7 @@ class GameContext:
     def get_alive_players_count(self) ->int:
         """Counts the number of alive players"""
         nr_alive = 0
-        for _, player in self.players.items():
+        for player in self.players.values():
             if not player.is_dead:
                 nr_alive += 1
         return nr_alive
@@ -58,7 +63,7 @@ class GameContext:
         """Counts the alive werewolves and villagers to check if the game is over."""
         nr_werewolves = 0
         nr_villagers = 0
-        for _, player in self.players.items():
+        for player in self.players.values():
             if not player.is_dead:
                 if isinstance(player.card, WerewolfCard):
                     nr_werewolves += 1
@@ -70,40 +75,46 @@ class GameContext:
 class GameState:
     """Base state class"""
 
-    async def handle(self, game :GameContext, command :GameCommand) ->str:
+    async def handle(self, game :GameContext, command :GameCommand) ->None:
         """Forwards the command to the corresponding command-handler"""
         if isinstance(command, StatusCommand):
-            return await self.handle_status(game, command)
-        if isinstance(command, JoinCommand):
-            return await self.handle_join(game, command)
-        if isinstance(command, QuitCommand):
-            return await self.handle_quit(game, command)
-        if isinstance(command, StartCommand):
-            return await self.handle_start(game, command)
-        if isinstance(command, VoteCommand):
-            return await self.handle_vote(game, command)
-        raise NotImplementedError
+            await self.handle_status(game, command)
+        elif isinstance(command, JoinCommand):
+            await self.handle_join(game, command)
+        elif isinstance(command, QuitCommand):
+            await self.handle_quit(game, command)
+        elif isinstance(command, StartCommand):
+            await self.handle_start(game, command)
+        elif isinstance(command, VoteCommand):
+            await self.handle_vote(game, command)
+        else:
+            raise NotImplementedError
 
 
-    async def handle_status(self, game :GameContext, command :StatusCommand) ->str:
+    async def handle_status(self, game :GameContext, command :StatusCommand) ->None:
         """Implementation of the Status command"""
-        return f"Command {command.name} not supported here (in {game.name})!"
+        await self.send_cmd_not_supported(game, command)
 
-    async def handle_join(self, game: GameContext, command :JoinCommand) ->str:
+    async def handle_join(self, game: GameContext, command :JoinCommand) ->None:
         """Implementation of the Join command"""
-        return f"Command {command.name} not supported here (in {game.name})!"
+        await self.send_cmd_not_supported(game, command)
 
-    async def handle_quit(self, game: GameContext, command :QuitCommand) ->str:
+    async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
         """Implementation of the Quit command"""
-        return f"Command {command.name} not supported here (in {game.name})!"
+        await self.send_cmd_not_supported(game, command)
 
-    async def handle_start(self, game: GameContext, command: StartCommand) ->str:
+    async def handle_start(self, game: GameContext, command: StartCommand) ->None:
         """Implementation of the Start command"""
-        return f"Command {command.name} not supported here (in {game.name})!"
+        await self.send_cmd_not_supported(game, command)
 
-    async def handle_vote(self, game: GameContext, command: StartCommand) ->str:
+    async def handle_vote(self, game: GameContext, command: StartCommand) ->None:
         """Implementation of the Vote command"""
-        return f"Command {command.name} not supported here (in {game.name})!"
+        await self.send_cmd_not_supported(game, command)
+
+
+    async def send_cmd_not_supported(self, game :GameContext, cmd) ->None:
+        """Sends a command not supported message"""
+        await game.send_msg( f"Command {cmd.name} not supported here (in {game.name})!")
 
 
     async def on_enter(self, game: GameContext, prev_state) ->None:
@@ -113,189 +124,209 @@ class GameState:
         """Called after the state is deactivated"""
 
 
+    async def handle_game_over(self, game :GameContext) ->bool:
+        """Check if the game is over, if yes --> handle it"""
+        nr_werewolves, nr_villagers = game.check_gameover()
+        if nr_werewolves == 0:
+            await game.send_msg("GAME OVER - the villagers won!")
+        if nr_villagers == 0:
+            await game.send_msg("GAME OVER - the werewolves won!")
+
+        if nr_werewolves == 0 or nr_villagers == 0:
+            await game.change_state( ReadyState() )
+            return True
+        return False    # game continues
+
+
 
 class ReadyState(GameState):
     """In the ReadyState the members may join themselves to the players list"""
 
-    async def handle_status(self, game: GameContext, command :StatusCommand) ->str:
-        result = "The game is in READY state:\n"
+    async def handle_status(self, game: GameContext, command :StatusCommand) ->None:
+        result = "No game is running yet, you are in the join-to-play phase.\n"
         result += "Currently the following members have registered to play:\n"
-        for item in game.players.values():
-            result += f"- **{item.name}**\n"
+        for player in game.players.values():
+            result += f"- **{player.name}**\n"
         result += "\nNext steps:\n"
         result += "- **!join** to join the game.\n"
         result += "- **!quit** to leave the game.\n"
         result += "- **!start** to start the game (needs at least 6 players!)"
-        return result
+        await game.send_msg( result )
 
-    async def handle_join(self, game: GameContext, command :JoinCommand) ->str:
+    async def handle_join(self, game: GameContext, command :JoinCommand) ->None:
+        # Add an human player
         logger.info("%s joins the game %s", command.author, game.name)
-        game.players[command.author] = Player(command.author.display_name)
-        return f"{command.author.display_name} joined the game."
+        game.players[command.get_player_name()] = HumanPlayer(command.author)
+        await game.send_msg( f"{command.get_player_name()} joined the game." )
 
-    async def handle_quit(self, game: GameContext, command :QuitCommand) ->str:
+    async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
         logger.info("%s quits the game %s", command.author, game.name)
-        if command.author in game.players:
-            del game.players[command.author]
-        return f"{command.author.display_name} quits the game."
+        if command.author.display_name in game.players:
+            del game.players[command.author.display_name]
+        await game.send_msg( f"{command.author.display_name} quits the game." )
 
-    async def handle_start(self, game: GameContext, command: StartCommand) ->str:
+    async def handle_start(self, game: GameContext, command: StartCommand) ->None:
         if len(game.players)<3:  # TODO - set this check to 6 when released
-            return "Cannot start game. At least six player must join the game via !join command."
+            await game.send_msg( "Cannot start game. "
+                                "At least six player must join the game via !join command." )
+            return
 
         # Shuffle and assign cards
         cards = create_cards(len(game.players))
         result = "Game started\nThe following cards are in the game:\n"
         for card in cards:
             result += f"- **{card.name}**: {card.desc}\n"
-        result += "See your direct-messages from me, to get to know your own card\n"
+        result += "See your direct-messages from me, to get to know your own card "
         result += "and further instructions."
         logger.info(result)
+        await game.send_msg( result )
 
         random.shuffle(cards)
-        for member in game.players.keys():
+        for player in game.players.values():
             card = cards.pop()
-            logger.info( "%s gets card %s", member, card )
-            game.players[member].card = card
-            logger.debug( "Send DM to %s", member)
-            await member.create_dm()
-            logger.debug( "Send DM to %s", member)
-            await member.dm_channel.send(
-                f"You got the card {card.name} in game {game.name}.\n"
-                f"{card.desc}"
-            )
-            logger.debug( "Sending DM to %s done", member)
+            logger.info( "%s gets card %s", player.name, card )
+            player.card = card
+            await player.send_dm(
+                f"You got the card **{card.name}** in game **{game.name}**.\n"
+                f"{card.desc}")
 
         # Tell all the Werewolves who they are
         werewolves = []
-        for member in game.players.keys():
-            if isinstance(game.players[member].card, WerewolfCard):
-                werewolves.append(member)
+        for player in game.players.values():
+            if isinstance(player.card, WerewolfCard):
+                werewolves.append(player)
         if game.werewolves_channel is None:
             game.werewolves_channel = await game.guild.create_text_channel(
                 "WerewolvesOnly_" + game.channel.name
             )
-        werewolves_str = " ".join( member.display_name for member in werewolves )
-        logger.info("The werewolves are: %s", werewolves_str)
-        for member in werewolves:
-            await member.dm_channel.send(
-                f"The werewolves team is {werewolves_str},\n"
+        werewolves_str = "The werewolves team is:\n"
+        for werewolf in werewolves:
+            werewolves_str += f"- **{werewolf.name}**\n"
+        logger.info(werewolves_str)
+        for player in werewolves:
+            await player.send_dm( werewolves_str +
+                (f"The werewolves team is {werewolves_str},\n"
                 f" secretly talk to them in {game.werewolves_channel.name}!\n"
                 "You need to vote for a villager to be eaten.\n"
-                "Tell me your decision using the !vote command in this direct-channel."
+                "Tell me your decision using the **!vote** command.")
             )
         await game.werewolves_channel.send(
             f"This is the channel for Werewolves in {game.name} only - **PLEASE DON't CHEAT!**\n")
         await game.werewolves_channel.send(
-            f"The werewolves team is {werewolves_str},\n"
+            werewolves_str +
             "You need to vote for a villager to be your next victim."
         )
 
         await game.change_state( NightState() )
-        return result
+
 
     async def on_enter(self, game: GameContext, prev_state) ->None:
-        for _, player in game.players.items():
-            player.reset()
-
-        await game.channel.send(
-            "This GAME is over!\n"
-            "Use the !start command to start with a new one."
-        )
-
+        await game.send_msg("This GAME is over!\n\n")
+        while len(game.players)>0:
+            _, player = game.players.popitem()
+            if isinstance(player, AIAgentPlayer ):
+                player.stop()
+            del player
         if not game.werewolves_channel is None:
             await game.werewolves_channel.delete()
             game.werewolves_channel = None
+        await self.handle_status(game, StatusCommand(None))
 
 
 
 class NightState(GameState):
     """The night-phase of a game-round"""
-    async def handle_status(self, game :GameContext, command :StatusCommand) ->str:
+    async def handle_status(self, game :GameContext, command :StatusCommand) ->None:
         result = "It is night. The Werewolves seek for their next victim.\n"
-        result += "Currently the following are still alive:\n"
+        result += "Currently the following players are still alive:\n"
         for player in game.players.values():
             if not player.is_dead:
                 result += f"- **{player.name}**\n"
-        result += "Werewolves use the !vote command."
-        return result
+        result += "\nNext steps:\n"
+        result += "- **!vote** (for Werewolves only) use this command to select their victim.\n"
+        result += "- **!quit** to leave the game through suicide.\n"
+        await game.send_msg( result )
 
+    async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
+        logger.info("%s quits the game %s through suicide.", command.author, game.name)
+        if command.author.display_name in game.players:
+            del game.players[command.author.display_name]
+        await game.send_msg( f"{command.author.display_name} quits the game through suicide." )
+        await self.handle_game_over(game)
 
-    async def handle_vote(self, game :GameContext, command :VoteCommand) ->str:
+    async def handle_vote(self, game :GameContext, command :VoteCommand) ->None:
         # Check if the player is allowed to vote
-        player = game.players[command.author]
+        player = game.players[command.voter_name]
         if player.is_dead:
-            return "Only alive players are allowed to vote!"
+            await game.send_msg( "Only alive players are allowed to vote!" )
+            return
         # Check if the victim is existing
         victim = game.find_player_by_name(command.player_name)
         if victim is None or victim.is_dead:
-            return f"{command.player_name} was not found in the list of alive players!"
+            await game.send_msg(
+                f"{command.player_name} was not found in the list of alive players!" )
+            return
 
         if isinstance(player.card, WerewolfCard):
-            return await self.handle_werewolf_vote(game, player, victim)
-        if isinstance(player.card, SeerCard):
-            return self.handle_seer_vote(player, victim)
-        return "Only alive Werewolves are allowed to vote a victim!"
+            await self.handle_werewolf_vote(game, player, victim)
+        elif isinstance(player.card, SeerCard):
+            await self.handle_seer_vote(game, player, victim)
+        else:
+            await game.send_msg( "Only alive Werewolves are allowed to vote a victim!" )
 
 
-    async def handle_werewolf_vote(self, game :GameContext, player :Player, victim :Player) ->str:
+    async def handle_werewolf_vote(self, game :GameContext, player :Player, victim :Player) ->None:
         """Handles the Werewolves vote process"""
         player.night_vote = victim
 
         # Check if the vote is already ended
-        votes = ""
+        votes = "The current votes are:\n"
+        non_votes = "These players still need to vote:\n"
         vote_valid = True
-        for _, player in game.players.items():
-            if isinstance(player.card, WerewolfCard):
-                if not player.night_vote is None:
-                    votes += player.night_vote.name + " "
-                    if player.night_vote != victim:
+        for plr in game.players.values():
+            if not plr.is_dead and isinstance(plr.card, WerewolfCard):
+                if not plr.night_vote is None:
+                    votes += f"- {plr.name} votes for {plr.night_vote.name}\n"
+                    if plr.night_vote != victim:
                         vote_valid = False
+                else:
+                    non_votes += f"- {plr.name}\n"
         if not vote_valid:
-            return (
+            await game.werewolves_channel.send(
                 "All Werewolves must agree on one victim.\n"
-                f"Current votes are {votes}\n"
+                + votes +
                 "Vote is not finished yet.\n"
-                "Use !vote command to update your decision."
+                + non_votes +
+                "Use **!vote** command to update your decision."
             )
+            return
 
         # We found a victim
         result = f"{victim.name} is killed by the Werewolves!\n"
         result += f"{victim.name} was a {victim.card.name}."
         victim.is_dead = True
+        await game.send_msg(result)
 
-        # Check if the game is over
-        nr_werewolves, nr_villagers = game.check_gameover()
-        if nr_werewolves == 0:
-            result += "\nGAME OVER - the villagers won!"
-        if nr_villagers == 0:
-            result += "\nGAME OVER - the werewolves won!"
-        await game.channel.send(result)
-
-        if nr_werewolves == 0 or nr_villagers == 0:
-            await game.change_state( ReadyState() )
-        else:
+        if not await self.handle_game_over(game):
             await game.change_state( DayState() )
 
-        return result
 
-
-    def handle_seer_vote(self, player :Player, victim :Player) ->str:
+    async def handle_seer_vote(self, game :GameContext, player :Player, victim :Player) ->None:
         """Handles the seer asking if a player is a werewolf."""
         if player.seer_asked_werewolf:
-            return "You are not allowed to ask twice within one night!"
+            await game.send_msg( "You are not allowed to ask twice within one night!" )
         player.seer_asked_werewolf = True
         if isinstance(victim.card, WerewolfCard):
-            return f"{victim.name} is a Werewolf!"
+            await game.send_msg( f"{victim.name} is a Werewolf!" )
         else:
-            return f"{victim.name} is not a Werewolf!"
+            await game.send_msg( f"{victim.name} is not a Werewolf!" )
 
 
     async def on_enter(self, game: GameContext, prev_state) ->None:
-        for _, player in game.players.items():
+        for player in game.players.values():
             player.night_vote = None
             player.seer_asked_werewolf = False
-        await game.channel.send(
+        await game.send_msg(
             "It's been a long day and now night is falling. "
             "The villagers are asleep and the werewolves are becoming active."
         )
@@ -303,18 +334,29 @@ class NightState(GameState):
 
 class DayState(GameState):
     """The day-phase of a game-round"""
-    async def handle_status(self, game :GameContext, command :StatusCommand) ->str:
+    async def handle_status(self, game :GameContext, command :StatusCommand) ->None:
         result = "It is day. All players seek for their next victim.\n"
-        result += "Currently the following are still alive:\n"
+        result += "Currently the following players are still alive:\n"
         for player in game.players.values():
             if not player.is_dead:
                 result += f"- **{player.name}**\n"
-        result += "Use the !vote command."
-        return result
+        result += "\nNext steps:\n"
+        result += "- **!vote** command to select the next victim.\n"
+        result += "- **!quit** to leave the game through suicide.\n"
+        await game.send_msg( result )
 
-    async def handle_vote(self, game :GameContext, command :VoteCommand) ->str:
+
+    async def handle_quit(self, game: GameContext, command :QuitCommand) ->None:
+        logger.info("%s quits the game %s through suicied", command.author, game.name)
+        if command.author.display_name in game.players:
+            del game.players[command.author.display_name]
+        await game.send_msg( f"{command.author.display_name} quits the game through suicide." )
+        await self.handle_game_over(game)
+
+
+    async def handle_vote(self, game :GameContext, command :VoteCommand) ->None:
         # Check if player is alive
-        player = game.players[command.author]
+        player = game.players[command.voter_name]
         if player.is_dead:
             return "Only alive players are allowed to vote a victim!"
         # Check if the victim is existing
@@ -324,52 +366,48 @@ class DayState(GameState):
         player.day_vote = victim
 
         # Check if the vote is already ended
-        votes = ""
+        votes = "The current votes are:\n"
+        non_votes = "These players still need to vote:\n"
         nr_players = game.get_alive_players_count()
         players_voted : dict[Player, int] = {}
-        for _, player in game.players.items():
+        for player in game.players.values():
             players_voted[player] = 0
-        for _, player in game.players.items():
-            if not player.day_vote is None:
-                players_voted[player.day_vote] = players_voted[player.day_vote]+1
-                votes += player.day_vote.name + " "
+        for player in game.players.values():
+            if not player.is_dead:
+                if not player.day_vote is None:
+                    players_voted[player.day_vote] = players_voted[player.day_vote]+1
+                    votes += f"- {player.name} votes for {player.day_vote.name}\n"
+                else:
+                    non_votes += f"- {player.name}\n"
         victim = None
         for player, v in players_voted.items():
             if v*2 > nr_players:
                 victim = player
 
         if victim is None:
-            return (
-                f"Current votes are {votes}\n"
+            await game.send_msg(
+                votes +
                 "Vote is not finished, because the victim must count at least half of the votes.\n"
-                "Use !vote command to update your decision."
+                + non_votes +
+                "Use **!vote** command to update your decision."
             )
+            return
 
         # We found a victim
         result = f"{victim.name} is killed by the villagers!\n"
         result += f"{victim.name} was a {victim.card.name}."
         victim.is_dead = True
+        await game.send_msg(result)
 
-        # Check if the game is over
-        nr_werewolves, nr_villagers = game.check_gameover()
-        if nr_werewolves == 0:
-            result += "\nGAME OVER - the villagers won!"
-        if nr_villagers == 0:
-            result += "\nGAME OVER - the werewolves won!"
-        await game.channel.send(result)
-
-        if nr_werewolves == 0 or nr_villagers == 0:
-            await game.change_state( ReadyState() )
-        else:
+        if not await self.handle_game_over(game):
             await game.change_state( NightState() )
 
-        return ""
 
 
     async def on_enter(self, game: GameContext, prev_state) ->None:
-        for _, player in game.players.items():
+        for player in game.players.values():
             player.day_vote = None
-        await game.channel.send(
+        await game.send_msg(
             "It was a long night and the werewolves roamed the streets of the city. "
             "Wake up, everyone, and wait for the things to come."
         )

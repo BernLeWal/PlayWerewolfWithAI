@@ -35,16 +35,21 @@ class OpenAIAgent:
 
     def system(self, content :str):
         """Starts with a new context (a reset), and provides the chat-systems general behavior"""
+        logger.info("Set OpenAIAgent system context:%s", content)
         self.messages = []
         self.messages.append( {"role": "system", "content": content} )
 
     def advice(self, question :str, answer :str) ->None:
         """Provides ChatGPT with a predefined question-answer pair """
-        self.messages.append( {"role": "user", "content": question})
-        self.messages.append( {"role": "assistant", "content": answer} )
+        logger.info("Advice OpenAIAgent Question:'%s', Answer:'%s'", question, answer)
+        if not question is None:
+            self.messages.append( {"role": "user", "content": question})
+        if not answer is None:
+            self.messages.append( {"role": "assistant", "content": answer} )
 
     def ask(self, prompt :str) ->str:
         """Sends a prompt to ChatGPT, will track the result in the context"""
+        logger.info("Ask OpenAIAgent '%s'", prompt)
         self.messages.append({"role": "user", "content": prompt})
         chat_completion = self.client.chat.completions.create(
             messages=self.messages,
