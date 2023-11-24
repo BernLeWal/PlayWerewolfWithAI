@@ -119,7 +119,7 @@ class AIAgentPlayer(Player):
             )
             self.current_messages = ""
             prompt = "Take part of the recent conversation or give answer."
-            await self.bot.get_channel(self.current_channel_id).send(f"{self.agent.ask(prompt)}")
+            await self.bot.get_channel(self.current_channel_id).send(f"**{self.name}**: {self.agent.ask(prompt)}")
             self.current_channel_id = -1
 
 
