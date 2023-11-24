@@ -10,10 +10,12 @@ from dotenv import load_dotenv
 import discord
 from discord import TextChannel
 
+from logic.gamestate import GameContext
+from model.player import AIAgentPlayer
 
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 class PlaierBot(discord.Client):
     """Discord Bot who will be used for the AI-agents (plAIer)"""
 
-    def __init__(self, discord_guild_str :str) ->None:
+    def __init__(self, discord_guild_str :str, games :dict[TextChannel, GameContext]) ->None:
         # Setup discord connection and the bot
         my_intents = discord.Intents.default()
         my_intents.message_content = True
@@ -32,6 +34,14 @@ class PlaierBot(discord.Client):
         super().__init__(intents=my_intents)
         self.discord_guild_str = discord_guild_str
         self.guild = None    # is set in on_ready()
+        self.games = games
+
+
+    def game_from_channel(self, channel :TextChannel) ->GameContext:
+        """Fetches the game of the channel"""
+        if not channel in self.games:
+            return None
+        return self.games[channel]
 
 
     def is_general_channel(self, channel :TextChannel) ->bool:
@@ -57,6 +67,22 @@ class PlaierBot(discord.Client):
             logger.warning("No 'general' channel found in %s or missing permission to send.",
                 self.guild.name)
 
+    async def on_message(self, message):
+        """A member sent a message"""
+        if message.author == self.user:
+            return
+        if message.content.startswith('!'):
+            return
+        logger.info("%s: %s=%s", message.channel, message.author, message.content)
+
+        # Send messages also to AI-agent players
+        game = self.game_from_channel( message.channel )
+        if not game is None:
+            for player in game.players.values():
+                if isinstance(player, AIAgentPlayer):
+                    await player.add_message(message.channel,
+                                            message.author.display_name,
+                                            message.content)
 
 
 # Application entry point
@@ -64,5 +90,5 @@ if __name__ == "__main__":
     # Load configuration
     load_dotenv()
 
-    client = PlaierBot(os.getenv('DISCORD_GUILD'))
+    client = PlaierBot(os.getenv('DISCORD_GUILD'), {})
     client.run(os.getenv('PLAIER_TOKEN'))

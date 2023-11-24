@@ -15,7 +15,6 @@ from discord import TextChannel, Member
 
 from logic.gamestate import GameContext
 from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
-from model.player import AIAgentPlayer
 
 
 # Set up logging
@@ -141,17 +140,6 @@ async def on_message(message):
         timestamp_string = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'{timestamp_string};{message.author};{message.content}\n')
 
-    if not bot.is_general_channel(message.channel):
-        if not isinstance(message.channel, discord.DMChannel):
-            # Send messages also to AI-agent players
-            game = bot.game_from_channel( message.channel, False )
-            if not game is None:
-                for player in game.players.values():
-                    if isinstance(player, AIAgentPlayer):
-                        await player.add_message(message.channel,
-                                                message.author.display_name,
-                                                message.content)
-
     # Without this, commands won't get processed
     await bot.process_commands(message)
 
@@ -162,6 +150,21 @@ async def show_rules(ctx):
     """The game rules are displayed"""
     with open('doc/GAMEPLAY.md','r', encoding="utf-8") as f:
         await ctx.send(f.read())
+
+
+@bot.command(name='terms', help='Display the terms of use')
+async def show_terms(ctx):
+    """The terms of use are displayed"""
+    chunk_size = 2000
+    with open('doc/TERMS-OF-USE.md','r', encoding="utf-8") as f:
+        while True:
+            chunk = f.read(chunk_size)   # Read a chunk of the specified size
+            if not chunk:
+                break   # If chunk is empty, end of file is reached
+            await ctx.send(chunk)    # Output the chunk
+            # Break if the chunk is smaller than the chunk size (end of file)
+            if len(chunk) < chunk_size:
+                break
 
 
 @bot.command(name='status',

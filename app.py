@@ -25,9 +25,9 @@ if __name__ == "__main__":
     if not os.path.exists('data'):
         os.makedirs('data')
 
-    plaier = PlaierBot(DISCORD_GUILD)
+    plaier = PlaierBot(DISCORD_GUILD, bot.games)
 
     loop = asyncio.get_event_loop()
-    loop.create_task( bot.start(MODERATOR_TOKEN))   #bot.run(MODERATOR_TOKEN)
+    loop.create_task( bot.start(MODERATOR_TOKEN))
     loop.create_task( plaier.start(PLAIER_TOKEN))
     loop.run_forever()

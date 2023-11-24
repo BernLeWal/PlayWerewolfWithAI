@@ -11,7 +11,7 @@ from model.card import Card
 
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +61,7 @@ class AIAgentPlayer(Player):
         super().__init__(str)
         self.message_queue = asyncio.Queue()
         self.agent = OpenAIAgent()
-        logger.info("Created AIAgentPlayer with name %s", name)
+        logger.info("Created AIAgentPlayer with name %s", self.name)
 
         self.current_channel = None
         self.current_messages : str = ""
@@ -69,6 +69,7 @@ class AIAgentPlayer(Player):
 
     async def send_dm(self, msg :str) ->None:
         """Sends a direct message to the player"""
+        logger.info("Sent DM '%s' to AIPlayer %s", msg, self.name)
         self.agent.advice( msg, None )
 
     async def __worker_task__(self):
@@ -138,4 +139,5 @@ class AIAgentPlayer(Player):
 
     async def add_message(self, channel :TextChannel, author_name :str, message :str) ->None:
         """Put a message in the queue"""
+        logger.info("Inform AI-Player %s about message '%s:%s'", self.name, author_name, message)
         await self.message_queue.put( (channel, author_name, message) )

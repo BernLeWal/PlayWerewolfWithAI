@@ -12,7 +12,7 @@ from model.card import create_cards, WerewolfCard, SeerCard
 
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -131,8 +131,8 @@ class ReadyState(GameState):
     async def handle_status(self, game: GameContext, command :StatusCommand) ->None:
         result = "The game is in READY state:\n"
         result += "Currently the following members have registered to play:\n"
-        for item in game.players.values():
-            result += f"- **{item.name}**\n"
+        for player in game.players.values():
+            result += f"- **{player.name}**\n"
         result += "\nNext steps:\n"
         result += "- **!join** to join the game.\n"
         result += "- **!quit** to leave the game.\n"
