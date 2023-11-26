@@ -2,7 +2,7 @@
 Module providing classes to handle commands.
 The command is created in the caller, but executed in the states.
 """
-from discord import Member
+from discord import Member, TextChannel
 
 class GameCommand:
     """Base command class"""
@@ -13,8 +13,9 @@ class GameCommand:
 
 class StatusCommand(GameCommand):
     """Handles !status command"""
-    def __init__(self, author :Member) -> None:
+    def __init__(self, author :Member, channel :TextChannel) -> None:
         super().__init__("status", author)
+        self.channel = channel
 
 
 class JoinCommand(GameCommand):

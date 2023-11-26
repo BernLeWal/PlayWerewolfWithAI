@@ -180,8 +180,12 @@ async def status(ctx):
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = bot.game_from_channel(ctx.channel)
-        await game.handle( StatusCommand(ctx.author) )
+        game = bot.game_from_channel(ctx.channel, False)
+        if not game is None:
+            await game.handle( StatusCommand(ctx.author, ctx.channel) )
+        game = bot.game_from_breakout_channel(ctx.channel)
+        if not game is None:
+            await game.handle( StatusCommand(ctx.author, ctx.channel) )
 
 
 @bot.command(name='join', help='Join the game in the current channel')
@@ -223,7 +227,7 @@ async def quit_bot(ctx):
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = bot.game_from_channel(ctx.channel)
+        game = bot.game_from_channel(ctx.channel, False)
         await game.handle( QuitCommand(ctx.author))
 
 
@@ -235,7 +239,7 @@ async def start(ctx):
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = bot.game_from_channel(ctx.channel)
+        game = bot.game_from_channel(ctx.channel, False)
         await game.handle( StartCommand(ctx.author))
 
 
@@ -254,7 +258,7 @@ async def vote(ctx, player_name :str):
             # TODO support werewolve's votes here:
             await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
         else:
-            game = bot.game_from_channel(ctx.channel)
+            game = bot.game_from_channel(ctx.channel, False)
             if game is None:
                 logger.warning("Game for channel %s not found!", ctx.channel)
             else:
@@ -262,16 +266,16 @@ async def vote(ctx, player_name :str):
                 await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
 
 
-@bot.event
-async def on_command_error(ctx, error):
-    """Error Handling"""
-    if isinstance(error, commands.errors.CommandNotFound):
-        await ctx.send('Command does not exist: \n'
-                       'Type !help to get a list of all commands')
-    elif isinstance(error, commands.errors.MissingRequiredArgument):
-        await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
-    else:
-        raise error # Re-raise the error to see the full traceback in the console
+#@bot.event
+#async def on_command_error(ctx, error):
+#    """Error Handling"""
+#    if isinstance(error, commands.errors.CommandNotFound):
+#        await ctx.send('Command does not exist: \n'
+#                       'Type !help to get a list of all commands')
+#    elif isinstance(error, commands.errors.MissingRequiredArgument):
+#        await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
+#    else:
+#        raise error # Re-raise the error to see the full traceback in the console
 
 
 
