@@ -67,9 +67,8 @@ class AIAgentPlayer(Player):
         self.current_channel_id = -1
         self.current_messages : str = ""
 
-        self.timer_task_name = "$$TimerTask$$"
-        self.timer_task = None
-        self.worker_task = None
+        self.tasks = None
+        self.is_stopped = False
 
     def __del__(self) ->None:
         self.stop()
@@ -82,33 +81,43 @@ class AIAgentPlayer(Player):
         self.agent.advice( msg, None )
 
     async def __worker_task__(self):
-        while True:
-            # Get message from the queue and process it
-            (channel_id, author_name, message) = await self.message_queue.get()
-            logger.debug("Worker processing: channel_id=%d %s:%s", channel_id, author_name, message)
+        try:
+            while not self.is_stopped:
+                # Get message from the queue and process it
+                (channel_id, author_name, message) = await self.message_queue.get()
+                logger.debug("Worker processing: channel_id=%d %s:%s",
+                             channel_id, author_name, message)
 
-            if author_name == "ModeratorBot":
-                if message == "!quit":
-                    break
-                await self.bot.get_channel(channel_id).send(f"{self.agent.ask(message)}")
-            elif author_name == self.timer_task_name:
-                if not self.current_channel_id == -1:
-                    await self.__send_current_messages__()
-            else:
-                if self.current_channel_id == -1:
-                    # It's a new message
-                    self.current_channel_id = channel_id
-                    self.current_messages = f"{author_name}: {message}\n"
-                elif self.current_channel_id == channel_id:
-                    # It adds to the current collaboration
-                    self.current_messages += f"{author_name}: {message}\n"
+                if author_name == "ModeratorBot":
+                    if message == "!quit":
+                        self.is_stopped = True
+                        break
+                    await self.bot.get_channel(channel_id).send(
+                        f"**{self.name}**: {await self.agent.ask_async(message)}")
+                elif author_name == "$$TimerTask$$":
+                    if not self.current_channel_id == -1:
+                        await self.__send_current_messages__()
                 else:
-                    # The collaboration moves to a different channel
-                    # --> send current collab to agent now
-                    await self.__send_current_messages__()
-                    self.current_channel_id = channel_id
-                    self.current_messages = f"{author_name}: {message}\n"
+                    if self.current_channel_id == -1:
+                        # It's a new message
+                        self.current_channel_id = channel_id
+                        self.current_messages = f"{author_name}: {message}\n"
+                    elif self.current_channel_id == channel_id:
+                        # It adds to the current collaboration
+                        self.current_messages += f"{author_name}: {message}\n"
+                    else:
+                        # The collaboration moves to a different channel
+                        # --> send current collab to agent now
+                        await self.__send_current_messages__()
+                        self.current_channel_id = channel_id
+                        self.current_messages = f"{author_name}: {message}\n"
+        except asyncio.CancelledError:
+            logger.warning("WorkerTask cancelled")
 
+    def __worker_event_loop__(self, loop):
+        asyncio.set_event_loop(loop)
+        task = loop.create_task(self.__worker_task__())
+        loop.run_until_complete(task)
 
     async def __send_current_messages__(self) ->None:
         if self.current_channel_id > -1 and len(self.current_messages)>0:
@@ -119,30 +128,38 @@ class AIAgentPlayer(Player):
             )
             self.current_messages = ""
             prompt = "Take part of the recent conversation or give answer."
-            await self.bot.get_channel(self.current_channel_id).send(f"**{self.name}**: {self.agent.ask(prompt)}")
+            await self.bot.get_channel(self.current_channel_id).send(
+                f"**{self.name}**: {await self.agent.ask_async(prompt)}")
             self.current_channel_id = -1
 
 
     async def __timer_task__(self):
-        while True:
-            await asyncio.sleep(60)   # produce a reminder every minute
-            await self.message_queue.put( (-1, self.timer_task_name, "SendCurrentMessages") )
+        try:
+            while not self.is_stopped:
+                await asyncio.sleep(60)   # produce a reminder every minute
+                await self.message_queue.put( (-1, "$$TimerTask$$", "SendCurrentMessages") )
+        except asyncio.CancelledError:
+            logger.warning("TimerTask cancelled")
+
+    def __timer_event_loop__(self, loop):
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.__timer_task__())
 
 
     async def start(self) ->None:
         """Start the worker thread"""
-        self.worker_task = asyncio.create_task(self.__worker_task__())
-        self.timer_task = asyncio.create_task(self.__timer_task__())
-        await asyncio.gather(self.timer_task, self.worker_task)
+        self.is_stopped = False
+        self.tasks = await asyncio.gather(self.__timer_task__(), self.__worker_task__())
 
-    def stop(self) ->None:
+
+    async def stop(self) ->None:
         """Stop the worker threads"""
-        if not self.worker_task is None:
-            self.worker_task.cancel()
-            self.worker_task = None
-        if not self.timer_task is None:
-            self.timer_task.cancel()
-            self.timer_task = None
+        self.is_stopped = True
+        await self.add_message(-1, "ModeratorBot", "!quit")
+        for task in self.tasks:
+            #if not task.done():
+            #    task.cancel()
+            task.join()
 
 
     async def init(self) ->None:

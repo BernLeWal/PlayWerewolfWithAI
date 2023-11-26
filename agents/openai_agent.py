@@ -4,6 +4,8 @@ The OpenAI API Agent to access the API for ChatGPT.
 """
 import os
 import logging
+import asyncio
+import threading
 from dotenv import load_dotenv
 
 from openai import OpenAI
@@ -31,6 +33,7 @@ class OpenAIAgent:
         self.messages = []
         self.model_name = "gpt-3.5-turbo"
 
+        self.result :str = None
 
 
     def system(self, content :str):
@@ -49,6 +52,7 @@ class OpenAIAgent:
 
     def ask(self, prompt :str) ->str:
         """Sends a prompt to ChatGPT, will track the result in the context"""
+        self.result = None
         logger.info("Ask OpenAIAgent '%s'", prompt)
         self.messages.append({"role": "user", "content": prompt})
         chat_completion = self.client.chat.completions.create(
@@ -58,19 +62,44 @@ class OpenAIAgent:
         result = ""
         for choice in chat_completion.choices:
             result += choice.message.content + "\n"
+        self.result = result
         self.messages.append({"role": "assistant", "content": result} )
         return result
+
+    async def ask_async(self, prompt :str ) ->str:
+        """Sends a prompt to ChatGPT via async, tracks the result in the context"""
+        thread = threading.Thread(target=self.ask, args=(prompt,))
+        thread.start()
+        while thread.is_alive and self.result is None:
+            await asyncio.sleep(1)
+        return self.result
+
 
 
 
 # Usage
-if __name__ == "__main__":
+async def main():
+    """Async main function"""
+
     agent = OpenAIAgent()
-#    agent.system("You are a player of the famous card game 'Werwölfe vom Düsterwald'")
-#    print( agent.ask("Tell me the rules of the game.") )
     agent.system("You are a helpful assistant.")
     agent.advice(
         "Who won the world series in 2020?",
         "The Los Angeles Dodgers won the World Series in 2020."
     )
-    print( agent.ask("Where was it played?"))
+    #print( await aiagent.ask("Where was it played?") )
+
+    # A demo for asynchronous programming
+    task = asyncio.create_task(agent.ask_async("Where was it played?"))
+    print("Waiting for the answer...")  # do other stuff...
+    print( await task )
+
+
+if __name__ == "__main__":
+    ### Synchronous Call ###
+    #agent = OpenAIAgent()
+    #agent.system("You are a player of the famous card game 'Werwölfe vom Düsterwald'")
+    #print( agent.ask("Tell me the rules of the game.") )
+
+    ### Asynchronous Call ###
+    asyncio.run(main())

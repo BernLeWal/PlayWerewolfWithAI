@@ -27,8 +27,7 @@ class JoinCommand(GameCommand):
         """Returns the name of the human-player or the ai-agent player"""
         if not self.author is None:
             return self.author.display_name
-        else:
-            return self.ai_player_name
+        return self.ai_player_name
 
 
 class QuitCommand(GameCommand):
