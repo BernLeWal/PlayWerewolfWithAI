@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 from discord import TextChannel, Member
+from bot_intents import bot_intents
 
 from logic.context import Context
 from logic.discordcontext import DiscordContext
@@ -30,12 +31,7 @@ class ModeratorBot(commands.Bot):
 
     def __init__(self, discord_guild_str :str) ->None:
         # Setup discord connection and the bot
-        my_intents = discord.Intents.default()
-        my_intents.message_content = True
-        my_intents.messages = True
-        my_intents.guilds = True
-        my_intents.members = True  # This is necessary to access the member list
-        super().__init__(command_prefix='!', intents=my_intents)
+        super().__init__(command_prefix='!', intents=bot_intents)
         self.discord_guild_str = discord_guild_str
         self.guild = None    # is set in on_ready()
         self.games :dict[TextChannel, Context] = {}

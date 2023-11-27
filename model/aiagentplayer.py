@@ -27,11 +27,11 @@ class AIAgentPlayer(Player):
         self.game = game
         logger.info("Created AIAgentPlayer with name %s", self.name)
 
-        self.current_channel_id = -1
-        self.current_messages : str = ""
+        self.__current_channel_id__ = -1
+        self.__current_messages__ : str = ""
 
-        self.tasks = None
-        self.is_stopped = False
+        self.__tasks__ = None
+        self.__stopped__ = False
 
     def __del__(self) ->None:
         self.stop()
@@ -45,7 +45,7 @@ class AIAgentPlayer(Player):
 
     async def __worker_task__(self):
         try:
-            while not self.is_stopped:
+            while not self.__stopped__:
                 # Get message from the queue and process it
                 (channel_id, author_name, message) = await self.message_queue.get()
                 logger.debug("Worker processing: channel_id=%d %s:%s",
@@ -53,13 +53,13 @@ class AIAgentPlayer(Player):
 
                 if author_name == "ModeratorBot":
                     if message == "!quit":
-                        self.is_stopped = True
+                        self.__stopped__ = True
                         break
                     await self.bot.get_channel(channel_id).send(
                         f"**{self.name}**: {await self.agent.ask_async(message)}")
                 elif author_name == "$$TimerTask$$":
-                    if not self.current_channel_id == -1:
-                        await self.__send_current_messages__()
+                    if not self.__current_channel_id__ == -1:
+                        await self.__send___current_messages____()
                     if not self.is_dead:
                         if self.game.is_werewolf_vote_needed(self):
                             await self.__check_werewolf_vote__()
@@ -68,34 +68,34 @@ class AIAgentPlayer(Player):
                         if self.game.is_seer_vote_needed(self):
                             await self.__check_seer_vote__()
                 else:
-                    if self.current_channel_id == -1:
+                    if self.__current_channel_id__ == -1:
                         # It's a new message
-                        self.current_channel_id = channel_id
-                        self.current_messages = f"{author_name}: {message}\n"
-                    elif self.current_channel_id == channel_id:
+                        self.__current_channel_id__ = channel_id
+                        self.__current_messages__ = f"{author_name}: {message}\n"
+                    elif self.__current_channel_id__ == channel_id:
                         # It adds to the current collaboration
-                        self.current_messages += f"{author_name}: {message}\n"
+                        self.__current_messages__ += f"{author_name}: {message}\n"
                     else:
                         # The collaboration moves to a different channel
                         # --> send current collab to agent now
-                        await self.__send_current_messages__()
-                        self.current_channel_id = channel_id
-                        self.current_messages = f"{author_name}: {message}\n"
+                        await self.__send___current_messages____()
+                        self.__current_channel_id__ = channel_id
+                        self.__current_messages__ = f"{author_name}: {message}\n"
         except asyncio.CancelledError:
             logger.warning("WorkerTask of %s cancelled!", self.name)
 
-    async def __send_current_messages__(self) ->None:
-        if self.current_channel_id > -1 and len(self.current_messages)>0:
-            logger.info("Send to LLM: %s", self.current_messages)
+    async def __send___current_messages____(self) ->None:
+        if self.__current_channel_id__ > -1 and len(self.__current_messages__)>0:
+            logger.info("Send to LLM: %s", self.__current_messages__)
             self.agent.advice(
                 "What did the other players say lately?",
-                self.current_messages
+                self.__current_messages__
             )
-            self.current_messages = ""
+            self.__current_messages__ = ""
             prompt = "Take part of the recent conversation or give answer."
-            await self.bot.get_channel(self.current_channel_id).send(
+            await self.bot.get_channel(self.__current_channel_id__).send(
                 f"**{self.name}**: {await self.agent.ask_async(prompt)}")
-            self.current_channel_id = -1
+            self.__current_channel_id__ = -1
 
     async def __check_werewolf_vote__(self) ->None:
         vote = await self.agent.ask_async(
@@ -138,7 +138,7 @@ class AIAgentPlayer(Player):
 
     async def __timer_task__(self):
         try:
-            while not self.is_stopped:
+            while not self.__stopped__:
                 await asyncio.sleep(60)   # produce a reminder every minute
                 await self.message_queue.put( (-1, "$$TimerTask$$", "SendCurrentMessages") )
         except asyncio.CancelledError:
@@ -147,15 +147,15 @@ class AIAgentPlayer(Player):
 
     async def start(self) ->None:
         """Start the worker thread"""
-        self.is_stopped = False
-        self.tasks = await asyncio.gather(self.__timer_task__(), self.__worker_task__())
+        self.__stopped__ = False
+        self.__tasks__ = await asyncio.gather(self.__timer_task__(), self.__worker_task__())
 
 
     async def stop(self) ->None:
         """Stop the worker threads"""
-        self.is_stopped = True
+        self.__stopped__ = True
         await self.add_message(-1, "ModeratorBot", "!quit")
-        for task in self.tasks:
+        for task in self.__tasks__:
             #if not task.done():
             #    task.cancel()
             task.join()

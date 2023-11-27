@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 import discord
 from discord import TextChannel
+from bot_intents import bot_intents
 
 from logic.gamecontext import GameContext
 from model.aiagentplayer import AIAgentPlayer
@@ -26,12 +27,7 @@ class PlaierBot(discord.Client):
 
     def __init__(self, discord_guild_str :str, games :dict[TextChannel, GameContext]) ->None:
         # Setup discord connection and the bot
-        my_intents = discord.Intents.default()
-        my_intents.message_content = True
-        my_intents.messages = True
-        my_intents.guilds = True
-        my_intents.members = True  # This is necessary to access the member list
-        super().__init__(intents=my_intents)
+        super().__init__(intents=bot_intents)
         self.discord_guild_str = discord_guild_str
         self.guild = None    # is set in on_ready()
         self.games = games
