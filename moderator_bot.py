@@ -245,10 +245,9 @@ async def start(ctx):
 
 
 @bot.command(name='vote', help='Votes a player to be selected for the next victim.')
-async def vote(ctx, player_name :str, voter_name :str = None):
+async def vote(ctx, player_name :str):
     """Vote command"""
-    if voter_name is None:
-        voter_name = ctx.author.display_name
+    voter_name = ctx.author.display_name
     if bot.is_general_channel(ctx.channel):
         await ctx.send( "Games can only be player in the other channels!")
     elif isinstance(ctx.channel, discord.DMChannel):

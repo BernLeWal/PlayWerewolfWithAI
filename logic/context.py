@@ -22,7 +22,7 @@ class Context:
 
     ##### Abstract State-Handling
     async def handle(self, command :GameCommand) ->None:
-        """Handle the provided command, returns a text message to be displaye in the channel"""
+        """Handle the provided command"""
 
 
     async def switch_to_readystate(self):

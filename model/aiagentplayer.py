@@ -7,6 +7,7 @@ import logging
 from agents.openai_agent import OpenAIAgent
 
 from model.player import Player
+from model.command import VoteCommand
 from logic.context import Context
 
 
@@ -101,37 +102,39 @@ class AIAgentPlayer(Player):
             "As a werewolf you need to vote for a victim together with the other werewolves."
             "Decide for a victim and answer this time with just one word - the player name!"
             )
-        logger.info("AIAgentPlayer %s (a werewolf) sent the following vote decision:%s",
+        vote = self.__fix_ai_vote__(vote)
+        logger.info("AIAgentPlayer %s (a werewolf) sent the following vote decision:'%s'",
                     self.name, vote)
         if vote in self.game.players:
-            await self.bot.get_channel(self.game.werewolves_channel.id).send(
-                f"!vote {vote} {self.name}"
-            )
+            await self.game.handle( VoteCommand(self.bot.user, self.name, vote))
 
     async def __check_villager_vote__(self) ->None:
         vote = await self.agent.ask_async(
             "You need to vote for a victim together with the others."
             "Decide for a victim and answer this time with just one word - the player name!"
             )
-        logger.info("AIAgentPlayer %s sent the following vote decision:%s",
+        vote = self.__fix_ai_vote__(vote)
+        logger.info("AIAgentPlayer %s sent the following vote decision:'%s'",
                     self.name, vote)
         if vote in self.game.players:
-            await self.bot.get_channel(self.game.channel.id).send(
-                f"!vote {vote} {self.name}"
-            )
+            await self.game.handle( VoteCommand(self.bot.user, self.name, vote))
 
     async def __check_seer_vote__(self) ->None:
         vote = await self.agent.ask_async(
             "As the seer you are allowed to ask if one player is a werewolf."
             "Decide for a player and answer this time with just one word - the player name!"
             )
-        logger.info("AIAgentPlayer %s (a seer) sent the following vote decision:%s",
+        logger.info("AIAgentPlayer %s (a seer) sent the following vote decision:'%s'",
                     self.name, vote)
+        vote = self.__fix_ai_vote__(vote)
         if vote in self.game.players:
-            await self.bot.get_channel(self.game.channel.id).send(
-                f"!vote {vote} {self.name}"
-            )
+            await self.game.handle( VoteCommand(self.bot.user, self.name, vote))
 
+    def __fix_ai_vote__(self, vote:str) ->str:
+        vote = vote.strip()
+        if vote.endswith('.') or vote.endswith('!'):
+            vote = vote[:-1]
+        return vote
 
     async def __timer_task__(self):
         try:
