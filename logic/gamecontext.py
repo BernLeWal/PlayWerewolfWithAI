@@ -4,7 +4,7 @@ State-Machine implementing the various states in the game play
 import logging
 
 from logic.context import Context
-from logic.gamestate import GameState
+from logic.state import State
 from logic.readystate import ReadyState
 from logic.nightstate import NightState
 from logic.daystate import DayState
@@ -23,7 +23,7 @@ class GameContext(Context):
     def __init__(self, name :str) ->None:
         super().__init__(name)
         self.players: dict[str, Player] = {}
-        self.__state__ :GameState = ReadyState()
+        self.__state__ :State = ReadyState()
 
 
     ##### State-Handling

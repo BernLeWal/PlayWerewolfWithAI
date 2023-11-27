@@ -262,16 +262,16 @@ async def vote(ctx, player_name :str):
                 await game.handle( VoteCommand(ctx.author, voter_name, player_name))
 
 
-#@bot.event
-#async def on_command_error(ctx, error):
-#    """Error Handling"""
-#    if isinstance(error, commands.errors.CommandNotFound):
-#        await ctx.send('Command does not exist: \n'
-#                       'Type !help to get a list of all commands')
-#    elif isinstance(error, commands.errors.MissingRequiredArgument):
-#        await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
-#    else:
-#        raise error # Re-raise the error to see the full traceback in the console
+@bot.event
+async def on_command_error(ctx, error):
+    """Error Handling"""
+    if isinstance(error, commands.errors.CommandNotFound):
+        await ctx.send('Command does not exist: \n'
+                       'Type !help to get a list of all commands')
+    elif isinstance(error, commands.errors.MissingRequiredArgument):
+        await ctx.send(f"An argument {error.param} is missing. Try !<command> help")
+    else:
+        raise error # Re-raise the error to see the full traceback in the console
 
 
 

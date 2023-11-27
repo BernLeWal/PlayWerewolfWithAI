@@ -3,8 +3,10 @@ The Baseclass implementation for the State-Machine in the game play
 """
 import logging
 
-from model.command import GameCommand
-from model.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
+from model.command import QuitCommand, VoteCommand
+from model.player import Player
+from logic.context import Context
+from logic.state import State
 
 
 # Set up logging
@@ -13,44 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 
-class GameState:
+class GameState(State):
     """Base state class"""
-
-    async def handle(self, game, command :GameCommand) ->None:
-        """Forwards the command to the corresponding command-handler"""
-        if isinstance(command, StatusCommand):
-            await self.handle_status(game, command)
-        elif isinstance(command, JoinCommand):
-            await self.handle_join(game, command)
-        elif isinstance(command, QuitCommand):
-            await self.handle_quit(game, command)
-        elif isinstance(command, StartCommand):
-            await self.handle_start(game, command)
-        elif isinstance(command, VoteCommand):
-            await self.handle_vote(game, command)
-        else:
-            raise NotImplementedError
-
-
-    async def handle_status(self, game, command :StatusCommand) ->None:
-        """Implementation of the Status command"""
-        await self.send_cmd_not_supported(game, command)
-
-    async def handle_join(self, game, command :JoinCommand) ->None:
-        """Implementation of the Join command"""
-        await self.send_cmd_not_supported(game, command)
-
-    async def handle_quit(self, game, command :QuitCommand) ->None:
-        """Implementation of the Quit command"""
-        await self.send_cmd_not_supported(game, command)
-
-    async def handle_start(self, game, command: StartCommand) ->None:
-        """Implementation of the Start command"""
-        await self.send_cmd_not_supported(game, command)
-
-    async def handle_vote(self, game, command: StartCommand) ->None:
-        """Implementation of the Vote command"""
-        await self.send_cmd_not_supported(game, command)
 
 
     async def send_cmd_not_supported(self, game, cmd) ->None:
@@ -58,8 +24,26 @@ class GameState:
         await game.send_msg( f"Command {cmd.name} not supported here (in {game.name})!")
 
 
-    async def on_enter(self, game, prev_state) ->None:
-        """Called before the state is activated"""
+    async def handle_quit(self, game :Context, command :QuitCommand) ->None:
+        """Handles the quit command during a running game"""
+        logger.info("%s quits the game %s through suicide.", command.author, game.name)
+        if command.author.display_name in game.players:
+            del game.players[command.author.display_name]
+        await game.send_msg( f"{command.author.display_name} quits the game through suicide." )
+        await game.handle_game_over()
 
-    async def on_leave(self, game, next_state) ->None:
-        """Called after the state is deactivated"""
+
+    async def check_vote_valid(self, game :Context, command :VoteCommand) ->(Player, Player):
+        """Checks if the vote-command is valid/allowed in the current game state"""
+        # Check if the player is allowed to vote
+        player = game.players[command.voter_name]
+        if player.is_dead:
+            await game.send_msg( "Only alive players are allowed to vote!" )
+            return (None, None)
+        # Check if the victim is existing
+        victim = game.find_player_by_name(command.player_name)
+        if victim is None or victim.is_dead:
+            await game.send_msg(
+                f"{command.player_name} was not found in the list of alive players!" )
+            return (None, None)
+        return (player, victim)

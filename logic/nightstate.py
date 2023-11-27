@@ -5,7 +5,7 @@ import logging
 
 from logic.context import Context
 from logic.gamestate import GameState
-from model.command import StatusCommand, QuitCommand, VoteCommand
+from model.command import StatusCommand, VoteCommand
 from model.player import Player
 from model.card import WerewolfCard, SeerCard
 
@@ -25,24 +25,9 @@ class NightState(GameState):
             result += game.get_alive_players_msg()
             await game.send_msg( result )
 
-    async def handle_quit(self, game: Context, command :QuitCommand) ->None:
-        logger.info("%s quits the game %s through suicide.", command.author, game.name)
-        if command.author.display_name in game.players:
-            del game.players[command.author.display_name]
-        await game.send_msg( f"{command.author.display_name} quits the game through suicide." )
-        await game.handle_game_over()
-
     async def handle_vote(self, game :Context, command :VoteCommand) ->None:
-        # Check if the player is allowed to vote
-        player = game.players[command.voter_name]
-        if player.is_dead:
-            await game.send_msg( "Only alive players are allowed to vote!" )
-            return
-        # Check if the victim is existing
-        victim = game.find_player_by_name(command.player_name)
-        if victim is None or victim.is_dead:
-            await game.send_msg(
-                f"{command.player_name} was not found in the list of alive players!" )
+        (player, victim) = await self.check_vote_valid(game, command)
+        if player is None or victim is None:
             return
 
         if isinstance(player.card, WerewolfCard):

@@ -25,23 +25,10 @@ class DayState(GameState):
             await game.send_msg( result )
 
 
-    async def handle_quit(self, game: Context, command :QuitCommand) ->None:
-        logger.info("%s quits the game %s through suicied", command.author, game.name)
-        if command.author.display_name in game.players:
-            del game.players[command.author.display_name]
-        await game.send_msg( f"{command.author.display_name} quits the game through suicide." )
-        await game.handle_game_over()
-
-
     async def handle_vote(self, game :Context, command :VoteCommand) ->None:
-        # Check if player is alive
-        player = game.players[command.voter_name]
-        if player.is_dead:
-            return "Only alive players are allowed to vote a victim!"
-        # Check if the victim is existing
-        victim = game.find_player_by_name(command.player_name)
-        if victim is None or victim.is_dead:
-            return f"{command.player_name} was not found in the list of alive players!"
+        (player, victim) = await self.check_vote_valid(game, command)
+        if player is None or victim is None:
+            return
         player.day_vote = victim
 
         victim = await self.check_current_votes(game)
