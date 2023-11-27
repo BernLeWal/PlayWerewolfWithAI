@@ -13,8 +13,9 @@ import discord
 from discord.ext import commands
 from discord import TextChannel, Member
 
-from logic.gamestate import GameContext
-from logic.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
+from logic.context import Context
+from logic.discordcontext import DiscordContext
+from model.command import StatusCommand, JoinCommand, QuitCommand, StartCommand, VoteCommand
 
 
 # Set up logging
@@ -37,11 +38,11 @@ class ModeratorBot(commands.Bot):
         super().__init__(command_prefix='!', intents=my_intents)
         self.discord_guild_str = discord_guild_str
         self.guild = None    # is set in on_ready()
-        self.games :dict[TextChannel, GameContext] = {}
+        self.games :dict[TextChannel, Context] = {}
 
 
     #### Helpers
-    def game_from_breakout_channel(self, channel :TextChannel) ->GameContext:
+    def game_from_breakout_channel(self, channel :TextChannel) ->Context:
         """Fetches the game of the breakout-channel where the Werewolves secretly communicate."""
         for game in self.games.values():
             if game.werewolves_channel == channel:
@@ -49,18 +50,18 @@ class ModeratorBot(commands.Bot):
         return None
 
 
-    def game_from_channel(self, channel :TextChannel, create = True) ->GameContext:
+    def game_from_channel(self, channel :TextChannel, create = True) ->Context:
         """Fetches the game of the channel, creates a new one if not found."""
         if not channel in self.games:
             if not create:
                 return None
-            game = GameContext(self.guild, channel)
+            game = DiscordContext(self.guild, channel)
             self.games[channel] = game
             return game
         return self.games[channel]
 
 
-    def game_from_member(self, player_name) ->GameContext:
+    def game_from_member(self, player_name) ->Context:
         """Fetches the game where the author is playing."""
         for game in self.games.values():
             for name in game.players.keys():
@@ -180,10 +181,10 @@ async def status(ctx):
     elif isinstance(ctx.channel, discord.DMChannel):
         pass
     else:
-        game = bot.game_from_channel(ctx.channel, False)
+        game = bot.game_from_breakout_channel(ctx.channel)
         if not game is None:
             await game.handle( StatusCommand(ctx.author, ctx.channel) )
-        game = bot.game_from_breakout_channel(ctx.channel)
+        game = bot.game_from_channel(ctx.channel, True)
         if not game is None:
             await game.handle( StatusCommand(ctx.author, ctx.channel) )
 
@@ -244,26 +245,26 @@ async def start(ctx):
 
 
 @bot.command(name='vote', help='Votes a player to be selected for the next victim.')
-async def vote(ctx, player_name :str):
+async def vote(ctx, player_name :str, voter_name :str = None):
     """Vote command"""
+    if voter_name is None:
+        voter_name = ctx.author.display_name
     if bot.is_general_channel(ctx.channel):
         await ctx.send( "Games can only be player in the other channels!")
     elif isinstance(ctx.channel, discord.DMChannel):
-        game = bot.game_from_member(ctx.author.display_name)
+        game = bot.game_from_member(voter_name)
         if not game is None:
-            await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
+            await game.handle( VoteCommand(ctx.author, voter_name, player_name))
     else:
         game = bot.game_from_breakout_channel(ctx.channel)
         if not game is None:
-            # TODO support werewolve's votes here:
-            await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
+            await game.handle( VoteCommand(ctx.author, voter_name, player_name))
         else:
             game = bot.game_from_channel(ctx.channel, False)
             if game is None:
                 logger.warning("Game for channel %s not found!", ctx.channel)
             else:
-                # TODO support werewolve's votes here:
-                await game.handle( VoteCommand(ctx.author, ctx.author.display_name, player_name))
+                await game.handle( VoteCommand(ctx.author, voter_name, player_name))
 
 
 #@bot.event

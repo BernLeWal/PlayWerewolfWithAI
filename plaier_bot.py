@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 import discord
 from discord import TextChannel
 
-from logic.gamestate import GameContext
-from model.player import AIAgentPlayer
+from logic.gamecontext import GameContext
+from model.aiagentplayer import AIAgentPlayer
 
 
 # Set up logging
@@ -80,7 +80,7 @@ class PlaierBot(discord.Client):
                 # Add an AI-Agent player
                 ai_player_name = message.content[8:]
                 logger.info("AI-Agent %s joins the game %s", ai_player_name, game.name)
-                player = AIAgentPlayer(ai_player_name, self)
+                player = AIAgentPlayer(ai_player_name, game, self)
                 game.players[ai_player_name] = player
                 await player.init()
                 await player.add_message(
