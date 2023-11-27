@@ -2,8 +2,10 @@
 Module providing classes to handle commands.
 The command is created in the caller, but executed in the states.
 """
+import dataclasses
 from discord import Member, TextChannel
 
+@dataclasses.dataclass
 class GameCommand:
     """Base command class"""
     def __init__(self, name: str, author :Member) ->None:
@@ -11,6 +13,7 @@ class GameCommand:
         self.author = author
 
 
+@dataclasses.dataclass
 class StatusCommand(GameCommand):
     """Handles !status command"""
     def __init__(self, author :Member, channel :TextChannel) -> None:
@@ -18,6 +21,7 @@ class StatusCommand(GameCommand):
         self.channel = channel
 
 
+@dataclasses.dataclass
 class JoinCommand(GameCommand):
     """Handles !join command"""
     def __init__(self, author :Member, ai_player_name :str = "") -> None:
@@ -31,18 +35,21 @@ class JoinCommand(GameCommand):
         return self.ai_player_name
 
 
+@dataclasses.dataclass
 class QuitCommand(GameCommand):
     """Handles !quit command (in the game)"""
     def __init__(self, author :Member) ->None:
         super().__init__("quit", author)
 
 
+@dataclasses.dataclass
 class StartCommand(GameCommand):
     """Handles !start command"""
     def __init__(self, author :Member) ->None:
         super().__init__("start", author)
 
 
+@dataclasses.dataclass
 class VoteCommand(GameCommand):
     """Handles !vote command"""
     def __init__(self, author :Member, voter_name :str, player_name :str) ->None:

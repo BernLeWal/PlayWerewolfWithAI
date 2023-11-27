@@ -1,8 +1,11 @@
 """
 Representing the cards in the game
 """
+import dataclasses
 import random
 
+
+@dataclasses.dataclass
 class Card:
     """Base class for all cards"""
     def __init__(self, name :str, character :int, night_order :int, desc :str):
@@ -15,6 +18,7 @@ class Card:
         return f"{self.name}({self.character})"
 
 
+@dataclasses.dataclass
 class WerewolfCard(Card):
     """Card representing the Werewolf role"""
     def __init__(self) -> None:
@@ -22,6 +26,7 @@ class WerewolfCard(Card):
             "Choose a victim to devour each night together with the other werewolves.")
 
 
+@dataclasses.dataclass
 class VillagerCard(Card):
     """Card representing the Villager role"""
     def __init__(self) -> None:
@@ -29,6 +34,7 @@ class VillagerCard(Card):
             "Find the werewolves and lynch them.")
 
 
+@dataclasses.dataclass
 class SeerCard(Card):
     """Card representing the Seer role"""
     def __init__(self) -> None:

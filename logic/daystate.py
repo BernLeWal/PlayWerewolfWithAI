@@ -21,13 +21,7 @@ class DayState(GameState):
             await self.check_current_votes(game)
         else:
             result = "It is day. All players seek for their next victim.\n"
-            result += "Currently the following players are still alive:\n"
-            for player in game.players.values():
-                if not player.is_dead:
-                    result += f"- **{player.name}**\n"
-            result += "\nNext steps:\n"
-            result += "- **!vote** command to select the next victim.\n"
-            result += "- **!quit** to leave the game through suicide.\n"
+            result += game.get_alive_players_msg()
             await game.send_msg( result )
 
 

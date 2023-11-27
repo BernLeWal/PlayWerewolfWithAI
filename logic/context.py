@@ -54,6 +54,17 @@ class Context:
                 nr_alive += 1
         return nr_alive
 
+    def get_alive_players_msg(self) ->str:
+        """Returns a list of still alive players"""
+        result = "Currently the following players are still alive:\n"
+        for player in self.players.values():
+            if not player.is_dead:
+                result += f"- **{player.name}**\n"
+        result += "\nNext steps:\n"
+        result += "- **!vote** command to select the next victim.\n"
+        result += "- **!quit** to leave the game through suicide.\n"
+        return result
+
 
     def check_gameover(self) ->(int, int):
         """Counts the alive werewolves and villagers to check if the game is over."""
@@ -66,7 +77,6 @@ class Context:
                 else:
                     nr_villagers += 1
         return nr_werewolves, nr_villagers
-
 
 
     ##### Abstract UI functions

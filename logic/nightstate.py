@@ -22,13 +22,7 @@ class NightState(GameState):
             await self.check_current_votes(game, None)
         else:
             result = "It is night. The Werewolves seek for their next victim.\n"
-            result += "Currently the following players are still alive:\n"
-            for player in game.players.values():
-                if not player.is_dead:
-                    result += f"- **{player.name}**\n"
-            result += "\nNext steps:\n"
-            result += "- **!vote** (for Werewolves only) use this command to select their victim.\n"
-            result += "- **!quit** to leave the game through suicide.\n"
+            result += game.get_alive_players_msg()
             await game.send_msg( result )
 
     async def handle_quit(self, game: Context, command :QuitCommand) ->None:
