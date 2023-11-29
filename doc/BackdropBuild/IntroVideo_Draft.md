@@ -1,44 +1,44 @@
-# PlayWerewolfWithAI - Intro-Video Draft
+# PlayWerewolfWithAI - Intro Video Draft
 
-## 1. The idea
+## 1. The Concept
 
-- Did you ever wonder how good LLMs are in terms of social interaction, collaborations with human beings - besides the common LLM use of reproducing of facts?
-- How well would AI-agents collaborate with humans together and against opposite teams? 
-- Cheat and lie to human players in order to win a game by itself?
-- Does it make fun to play together and/or against AI-Agents?
+- Have you ever pondered the capabilities of Large Language Models (LLMs) in social interactions and collaboration with humans, beyond just reproducing facts?
+- How effectively can AI agents collaborate with human players, both as teammates and adversaries?
+- Are AI agents capable of deceiving human players to secure a win independently?
+- What is the experience like playing alongside or against AI agents?
 
 ###
-- I did wonder - so I've born the idea to try this out using a famous card game - "Werewolves from Düsterwald".
-- Only with that idea at start I took part in backdrop build v2 - and now, after three weeks and a lot of night coding sessions beside my day work I proudly present the first prototype for you.
 
-## 2. Product intro
+- Intrigued by these questions, I embarked on a journey to explore them using the well-known card game "Werewolves of Millers Hollow".
+- Sparked by this idea, I joined the Backdrop Build v2 challenge. After three intense weeks of coding during my off-hours, I am excited to unveil the first prototype.
 
-- PlayWerewolfWithAI is a discord application running on my discord guild "wAIrewolves".
-- It is the implementation of the famous social role-playing game that divides a group of people into two camps: the villagers and the werewolves, who have to win together against the other team.
-- You'll find the explanation of the game rules in the provided link.
-- There is one ModeratorBot who is the story teller and controls the gameplay.
-- And there is a AIAgentPlayer bot who will represent one or more instances of AI-players within that game.
-- So now let's have a look into the game online
+## 2. Product Introduction
+
+- PlayWerewolfWithAI is a Discord application hosted on the server "wAIrewolves".
+- It brings to life the popular social role-playing game where players are divided into villagers and werewolves, each group striving to outwit the other.
+- Detailed game rules can be found at the provided link.
+- The game features a ModeratorBot, acting as the narrator and overseer of the gameplay.
+- Additionally, an AIAgentPlayer bot represents one or more AI players in the game.
+- Let's dive into the online gaming experience.
 
 ## 3. Hands-On Demo
-- I've prepared three human players here: Tron, Alan and Kevin_Flynn
-- To start a game we create a channel where the game will take place, I'll use "game1"
-- The !help command shows how you can interact with the ModeratorBot
-- !status recaps the current situation in the game
-- Now let's join our human users to play
-- We also want to have AI-Agents as players, these are invited with the command, where I also may give the AI-Agent a name
-- Now you see, that the AI-Agents already responds and you may interact with them
-- "Hi Rea, I'm happy to have you here, let's start the game"
-- Now we start the game …. And the ModeratorBot will shuffle the cards - our roles - and distribute them to us.
 
-## 4. Show some remarkable collaborations
+- I've set up three human players for this demonstration: Tron, Alan, and Kevin_Flynn.
+- We initiate a game in the "game1" channel.
+- The !help command reveals interactions available with the ModeratorBot.
+- !status provides a recap of the ongoing game scenario.
+- Let's add our human users to the mix.
+- To incorporate AI Agents, we use a specific command, allowing even name customization for these AI players.
+- Observe how the AI Agents interact and respond in real-time.
+- “Hi Rea, delighted to have you. Let's get the game started.”
+- The game begins with the ModeratorBot shuffling and distributing roles among players.
 
-- (Search for word "suspicious" and show some of the collaboration Texts.)
- 
-## 5. Finale
+## 4. Highlighting Collaborative Moments
+- I already played a few rounds, so lets fast forward and have a look at some of the remarkable interactions between AIAgents and human players.
+- (Locate and display text instances with the word "suspicious" to showcase notable player collaborations.)
 
-- Ok folks, that's it for now - for this short introductional video.
-- Finally, I would like to thank the BackdropBuild team for sparking the energy in me to build a prototype from what was initially just an idea.
-- --> What a ride!!!
-- And Thank you for viewing.
-
+## 5. Conclusion
+- That concludes our brief introductory video.
+- I extend my heartfelt gratitude to the BackdropBuild team for inspiring me to transform a mere concept into a tangible prototype.
+- What an exhilarating journey this has been!
+- Thank you for watching.
