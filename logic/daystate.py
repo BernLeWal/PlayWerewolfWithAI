@@ -5,7 +5,7 @@ import logging
 
 from logic.context import Context
 from logic.gamestate import GameState
-from model.command import StatusCommand, QuitCommand, VoteCommand
+from model.command import StatusCommand, VoteCommand
 from model.player import Player
 
 
