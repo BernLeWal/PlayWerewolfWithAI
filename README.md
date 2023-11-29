@@ -8,6 +8,13 @@ It is a case study how well AI-agents (using LLMs) act in human collaboration.
 
 These questions will be examined and answered in the context of an online board game - the card game "Werewolves". As gaming platform [Discord](https://discord.com) is used.
 
+## Used LLMs
+
+The used models for the AI-agents are implemented in the [agents/](agents/) subdirectory.
+
+* The current implementation uses OpenAI API [https://platform.openai.com](https://platform.openai.com) with the gpt-3.5-turbo model. The OPENAI_API_KEY has to be provided in the .env to make it work.
+* find the implementation using a local falcon-7b-instruct model [https://huggingface.co/tiiuae/falcon-7b-instruct](https://huggingface.co/tiiuae/falcon-7b-instruct) in the feature/falcon7b branch.
+
 ## The Werewolves Game
 
 It's a social role-playing game that divides a group of people into two camps: the villagers and the werewolves. The objective of the game differs for the two groups. The werewolves aim to eliminate all the villagers, while the villagers aim to identify and eradicate all the werewolves.
