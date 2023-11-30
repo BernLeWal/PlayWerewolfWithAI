@@ -32,6 +32,39 @@ pip install -r requirements.txt
 ```
 See the contents of [requirements.txt](requirements.txt) to check out which libraries are needed
 
+### Transformers/Falcon-7b-instruct LLM
+
+To use the LLMs on your local machine with the installed GPU you need to fulfil the following installation steps:
+
+#### PyTorch:
+
+Fetch PIP install command from PyTorch Website: https://pytorch.org/get-started/locally/ 
+
+On 4.8.2023 for my RTX2080 it was:
+```
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+Alternative: If you have only a CPU (without GPU) then it is the following command:
+```
+pip install torch torchvision torchaudio
+```
+
+#### Transformers:
+
+```
+pip install transformers accelerate
+```
+
+#### Final steps:
+
+Finally update requirements.txt
+
+```
+pip3 freeze > requirements.txt
+```
+
+### Discord Setup
 
 Create an application and guild on Discord:
 1. Create a Discord Account or login: [Discord](https://discord.com)

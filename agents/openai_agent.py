@@ -5,8 +5,8 @@ The OpenAI API Agent to access the API for ChatGPT.
 import os
 import logging
 import asyncio
-import threading
 from dotenv import load_dotenv
+from aiagent import AIAgent
 
 from openai import OpenAI
 
@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-class OpenAIAgent:
+class OpenAIAgent(AIAgent):
     """Accesses the OpenAI API, will keep track of the context"""
     def __init__(self) ->None:
+        super().__init__()
         #apikey = os.getenv('OPENAI_API_KEY')
         organization = os.getenv('OPENAI_ORGANIZATION')
 
@@ -30,10 +31,7 @@ class OpenAIAgent:
             # defaults to os.environ.get("OPENAI_API_KEY")
             organization= organization
         )
-        self.messages = []
         self.model_name = "gpt-3.5-turbo"
-
-        self.result :str = None
 
 
     def system(self, content :str):
@@ -65,16 +63,6 @@ class OpenAIAgent:
         self.result = result
         self.messages.append({"role": "assistant", "content": result} )
         return result
-
-    async def ask_async(self, prompt :str ) ->str:
-        """Sends a prompt to ChatGPT via async, tracks the result in the context"""
-        thread = threading.Thread(target=self.ask, args=(prompt,))
-        thread.start()
-        while thread.is_alive and self.result is None:
-            await asyncio.sleep(1)
-        return self.result
-
-
 
 
 # Usage

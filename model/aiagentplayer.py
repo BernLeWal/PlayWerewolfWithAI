@@ -4,7 +4,8 @@ Representing a player in a Werewolve game
 import asyncio
 import logging
 
-from agents.openai_agent import OpenAIAgent
+#from agents.openai_agent import OpenAIAgent
+from agents.falcon7b_agent import Falcon7BAgent
 
 from model.player import Player
 from model.command import VoteCommand
@@ -22,7 +23,7 @@ class AIAgentPlayer(Player):
     def __init__(self, name :str, game :Context, bot) ->None:
         super().__init__(name)
         self.message_queue = asyncio.Queue()
-        self.agent = OpenAIAgent()
+        self.agent = Falcon7BAgent() #OpenAIAgent()
         self.bot = bot
         self.game = game
         logger.info("Created AIAgentPlayer with name %s", self.name)
